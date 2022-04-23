@@ -24,8 +24,6 @@
 	 (uint64_t)(p)[6] <<  8 | \
 	 (uint64_t)(p)[7])
 
-
-// 注意：PUTU32(buf, val++) 会出错！
 #define PUTU16(p,V) \
 	((p)[0] = (uint8_t)((V) >> 8), \
 	 (p)[1] = (uint8_t)(V))

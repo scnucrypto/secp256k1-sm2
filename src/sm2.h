@@ -10,7 +10,7 @@
 #include "group.h"
 #include "ecmult.h"
 
-#define SM2_MAX_PLAINTEXT_SIZE	256 // re-compute SM2_MAX_CIPHERTEXT_SIZE when modify
+#define SM2_MAX_PLAINTEXT_SIZE	256
 
 typedef struct {
 	secp256k1_ge point;

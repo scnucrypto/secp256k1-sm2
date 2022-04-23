@@ -10,8 +10,9 @@
 #include "sm3.h"
 #include "endian.h"
 #include "sm2.h"
+#if 0
 #include <random.h>
-
+#endif
 int sm2_kdf(const uint8_t *in, size_t inlen, size_t outlen, uint8_t *out)
 {
     SM3_CTX ctx;

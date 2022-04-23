@@ -680,8 +680,6 @@ int secp256k1_sm2_decryption(const unsigned char *cip, const unsigned char kLen,
     return secp256k1_sm2_do_decrypt(cip, kLen, msg, sec);
 }
 
-
-
 int secp256k1_sm2_sign(const secp256k1_context* ctx, secp256k1_ecdsa_signature *signature, const unsigned char *msghash32, const unsigned char *seckey, const unsigned char *seckeyInv, const unsigned char *seckeyInvSeckey, secp256k1_nonce_function noncefp, const void* noncedata) {
     secp256k1_scalar r, s;
     int ret;
