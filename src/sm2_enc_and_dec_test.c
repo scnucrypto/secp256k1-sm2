@@ -82,8 +82,9 @@ int main(void) {
     printf("total time %f seconds\n", total_time);
     printf("average time %f seconds\n", average_time/i);
 
-    printf("Is the decrytion succeed? %s\n", is_signature_valid ? "true" : "false");
+    printf("Is the decrytion succeed? %s %d\n", is_signature_valid ? "true" : "false", is_signature_valid);
     
+    print_hex(m, 32);
     /* This will clear everything from the context and free the memory */
     secp256k1_context_destroy(ctx);
     memset(seckey, 0, sizeof(seckey));

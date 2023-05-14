@@ -197,7 +197,7 @@ int secp256k1_sm2_do_decrypt(const unsigned char *cip, const unsigned char kLen,
     secp256k1_fe x, y;
     SM3_CTX sm3_ctx;
     /*
-        convert C1||C2||C3 to C1,C2,C3
+        conv ert C1||C2||C3 to C1,C2,C3
     */
     for (i = 0; i < 64; i++)
     {

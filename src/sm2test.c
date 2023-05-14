@@ -102,8 +102,8 @@ int main(void) {
     finish = clock();
     total_time = (double)(finish - start) / CLOCKS_PER_SEC;
     assert(return_val);
-    printf("total time %f seconds\n", total_time);
-    printf("average time %f seconds\n", average_time/100000);
+    printf("sign: total time %f seconds\n", total_time);
+    printf("sign: one second run %f times\n", 1/(total_time/100000));
     /* Serialize the signature in a compact form. Should always return 1
      * according to the documentation in secp256k1.h. */
     return_val = secp256k1_ecdsa_signature_serialize_compact(ctx, serialized_signature, &sig);
@@ -132,7 +132,7 @@ int main(void) {
     finish = clock();
     total_time = (double)(finish - start) / CLOCKS_PER_SEC;
     printf("total time %f seconds\n", total_time);
-    printf("average time %f seconds\n", average_time/100000);
+    printf("verify: one second run %f timess\n", 1/(total_time/100000));
 
     printf("Is the signature valid? %s\n", is_signature_valid ? "true" : "false");
     printf("Secret Key: ");
