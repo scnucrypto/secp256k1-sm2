@@ -94,16 +94,17 @@ int main(void) {
     secp256k1_sm2_precomputed(ctx, seckey, seckeyInv, seckeyInvSeckey);
     clock_t start,finish;
     double total_time, average_time;
+    int count = 100000;
     start = clock();
     int i = 0;
-    for(;i < 100000;i++){
+    for(;i < count;i++){
         return_val = secp256k1_sm2_sign(ctx, &sig, msg_hash, seckey, seckeyInv, seckeyInvSeckey, NULL, NULL);
     }
     finish = clock();
     total_time = (double)(finish - start) / CLOCKS_PER_SEC;
     assert(return_val);
     printf("sign: total time %f seconds\n", total_time);
-    printf("sign: one second run %f times\n", 1/(total_time/100000));
+    printf("sign: one second run %f times\n", 1/(total_time/count));
     /* Serialize the signature in a compact form. Should always return 1
      * according to the documentation in secp256k1.h. */
     return_val = secp256k1_ecdsa_signature_serialize_compact(ctx, serialized_signature, &sig);
@@ -126,22 +127,21 @@ int main(void) {
 
     /* Verify a signature. This will return 1 if it's valid and 0 if it's not. */
     start = clock();
-    for(i = 0;i < 100000;i++){
+    for(i = 0;i < count;i++){
         is_signature_valid = secp256k1_sm2_verify(ctx, &sig, msg_hash, &pubkey);
     }
     finish = clock();
     total_time = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf("total time %f seconds\n", total_time);
-    printf("verify: one second run %f timess\n", 1/(total_time/100000));
+    printf("verify: total time %f seconds\n", total_time);
+    printf("verify: one second run %f timess\n", 1/(total_time/count));
 
-    printf("Is the signature valid? %s\n", is_signature_valid ? "true" : "false");
-    printf("Secret Key: ");
-    print_hex(seckey, sizeof(seckey));
-    printf("Public Key: ");
-    print_hex(compressed_pubkey, sizeof(compressed_pubkey));
-    printf("Signature: ");
-    print_hex(serialized_signature, sizeof(serialized_signature));
-
+    // printf("Is the signature valid? %s\n", is_signature_valid ? "true" : "false");
+    // printf("Secret Key: ");
+    // print_hex(seckey, sizeof(seckey));
+    // printf("Public Key: ");
+    // print_hex(compressed_pubkey, sizeof(compressed_pubkey));
+    // printf("Signature: ");
+    // print_hex(serialized_signature, sizeof(serialized_signature));
 
     /* This will clear everything from the context and free the memory */
     secp256k1_context_destroy(ctx);

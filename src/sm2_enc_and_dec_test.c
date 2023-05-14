@@ -63,28 +63,29 @@ int main(void) {
     double total_time, average_time;
     start = clock();
     int i = 0;
-    for(;i < 1;i++){
+    int count = 100000;
+    for(;i < count;i++){
         return_val = secp256k1_sm2_encryption(ctx, msg_hash, sizeof(msg_hash), &pubkey, NULL, NULL, cip);
     }
     finish = clock();
     total_time = (double)(finish - start) / CLOCKS_PER_SEC;
     assert(return_val);
-    printf("encryption %d times, total time %f seconds\n", i,total_time);
-    printf("average time %f seconds\n", average_time/(float)i);
+    printf("encryption: total time %f seconds\n", total_time);
+    printf("encryption: one second run %f times\n", 1/(total_time/count));
     
     /*** Decryption ***/
     start = clock();
-    for(i = 0;i < 1;i++){
+    for(i = 0;i < count;i++){
         is_signature_valid = secp256k1_sm2_decryption(cip, sizeof(msg_hash), m, seckey);
     }
     finish = clock();
     total_time = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf("total time %f seconds\n", total_time);
-    printf("average time %f seconds\n", average_time/i);
-
-    printf("Is the decrytion succeed? %s %d\n", is_signature_valid ? "true" : "false", is_signature_valid);
+    printf("decryption: total time %f seconds\n", total_time);
+    printf("decryption: one second run %f times\n", 1/(total_time/count));
     
-    print_hex(m, 32);
+    // printf("Is the decrytion succeed? %s %d\n", is_signature_valid ? "true" : "false", is_signature_valid);
+    
+    // print_hex(m, 32);
     /* This will clear everything from the context and free the memory */
     secp256k1_context_destroy(ctx);
     memset(seckey, 0, sizeof(seckey));
