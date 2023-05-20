@@ -6,7 +6,8 @@
 #include <random.h>
 #include <time.h>
 
-int main(void) {
+#include <omp.h>
+int run(int thread_num){
     /* Instead of signing the message directly, we must sign a 32-byte hash.
      * Here the message is "Hello, world!" and the hash function was SHA-256.
      * An actual implementation should just call SHA-256, but this example
@@ -59,35 +60,63 @@ int main(void) {
     assert(len == sizeof(compressed_pubkey));
 
     /*** Enctryption ***/
-    clock_t start,finish;
-    double total_time, average_time;
-    start = clock();
-    int i = 0;
-    for(;i < 1;i++){
+//    clock_t start,finish;
+//    double total_time, average_time;
+//    start = clock();
+//    int i = 0;
+//    for(;i < 1;i++){
+//        return_val = secp256k1_sm2_encryption(ctx, msg_hash, sizeof(msg_hash), &pubkey, NULL, NULL, cip);
+//    }
+//    finish = clock();
+//    total_time = (double)(finish - start) / CLOCKS_PER_SEC;
+//    assert(return_val);
+//    printf("encryption %d times, total time %f seconds\n", i,total_time);
+//    printf("average time %f seconds\n", average_time/(float)i);
+//
+    double begin,end;
+    size_t count = 500000;
+
+    begin = omp_get_wtime();
+    #pragma omp parallel for num_threads(thread_num)
+    for(int i = 0; i < count;i++){
         return_val = secp256k1_sm2_encryption(ctx, msg_hash, sizeof(msg_hash), &pubkey, NULL, NULL, cip);
     }
-    finish = clock();
-    total_time = (double)(finish - start) / CLOCKS_PER_SEC;
+    end = omp_get_wtime();
+    printf("enc - %d threads: run %d times, , total time: %f s, per second run %f tims\n", \
+			thread_num, count, (end-begin), count/(end-begin));
     assert(return_val);
-    printf("encryption %d times, total time %f seconds\n", i,total_time);
-    printf("average time %f seconds\n", average_time/(float)i);
-    
     /*** Decryption ***/
-    start = clock();
-    for(i = 0;i < 1;i++){
+//    start = clock();
+//    for(i = 0;i < 1;i++){
+//        is_signature_valid = secp256k1_sm2_decryption(cip, sizeof(msg_hash), m, seckey);
+//    }
+//    finish = clock();
+//    total_time = (double)(finish - start) / CLOCKS_PER_SEC;
+//    printf("total time %f seconds\n", total_time);
+//    printf("average time %f seconds\n", average_time/i);
+    begin = omp_get_wtime();
+    #pragma omp parallel for num_threads(thread_num)
+    for(int i = 0;i < count; i++){
         is_signature_valid = secp256k1_sm2_decryption(cip, sizeof(msg_hash), m, seckey);
     }
-    finish = clock();
-    total_time = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf("total time %f seconds\n", total_time);
-    printf("average time %f seconds\n", average_time/i);
+    end = omp_get_wtime();
+    printf("dec - %d threads: run %d times, , total time: %f s, per second run %f tims\n", \
+			thread_num, count, (end-begin), count/(end-begin));
+//
+//   printf("Is the decrytion succeed? %s %d\n", is_signature_valid ? "true" : "false", is_signature_valid);
+//    print_hex(m, 32);
 
-    printf("Is the decrytion succeed? %s %d\n", is_signature_valid ? "true" : "false", is_signature_valid);
-    
-    print_hex(m, 32);
     /* This will clear everything from the context and free the memory */
     secp256k1_context_destroy(ctx);
     memset(seckey, 0, sizeof(seckey));
-
     return 0;
+}
+
+int main(){
+    run(1);
+    run(2);
+    run(4);
+    run(8);
+    run(12);
+    run(32);
 }

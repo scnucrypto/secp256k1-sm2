@@ -16,8 +16,9 @@
 #include <random.h>
 #include <time.h>
 
+#include <omp.h>
 
-int main(void) {
+int run(int thread_num) {
     /* Instead of signing the message directly, we must sign a 32-byte hash.
      * Here the message is "Hello, world!" and the hash function was SHA-256.
      * An actual implementation should just call SHA-256, but this example
@@ -92,18 +93,25 @@ int main(void) {
      * and the default nonce function should never fail. */
     // unsigned char seckey[32] = "6ceecf6d2ba1cda1";
     secp256k1_sm2_precomputed(ctx, seckey, seckeyInv, seckeyInvSeckey);
-    clock_t start,finish;
-    double total_time, average_time;
-    start = clock();
-    int i = 0;
-    for(;i < 100000;i++){
+//    clock_t start,finish;
+//    double total_time, average_time;
+//    start = clock();
+    double begin,end;
+    size_t count = 500000;
+
+    begin = omp_get_wtime();
+    #pragma omp parallel for num_threads(thread_num)
+    for(int i = 0; i < count;i++){
         return_val = secp256k1_sm2_sign(ctx, &sig, msg_hash, seckey, seckeyInv, seckeyInvSeckey, NULL, NULL);
     }
-    finish = clock();
-    total_time = (double)(finish - start) / CLOCKS_PER_SEC;
+    end = omp_get_wtime();
+    printf("sign - %d threads: run %d times, , total time: %f s, per second run %f tims\n", \
+			thread_num, count, (end-begin), count/(end-begin));
+//    finish = clock();
+//    total_time = (double)(finish - start) / CLOCKS_PER_SEC;
     assert(return_val);
-    printf("sign: total time %f seconds\n", total_time);
-    printf("sign: one second run %f times\n", 1/(total_time/100000));
+//  printf("sign: total time %f seconds\n", total_time);
+//  printf("sign: one second run %f times\n", 1/(total_time/100000));
     /* Serialize the signature in a compact form. Should always return 1
      * according to the documentation in secp256k1.h. */
     return_val = secp256k1_ecdsa_signature_serialize_compact(ctx, serialized_signature, &sig);
@@ -125,22 +133,26 @@ int main(void) {
     }
 
     /* Verify a signature. This will return 1 if it's valid and 0 if it's not. */
-    start = clock();
-    for(i = 0;i < 100000;i++){
+//    start = clock();
+    begin = omp_get_wtime();
+    #pragma omp parallel for num_threads(thread_num)
+    for(int i = 0;i < count;i++){
         is_signature_valid = secp256k1_sm2_verify(ctx, &sig, msg_hash, &pubkey);
     }
-    finish = clock();
-    total_time = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf("total time %f seconds\n", total_time);
-    printf("verify: one second run %f timess\n", 1/(total_time/100000));
-
-    printf("Is the signature valid? %s\n", is_signature_valid ? "true" : "false");
-    printf("Secret Key: ");
-    print_hex(seckey, sizeof(seckey));
-    printf("Public Key: ");
-    print_hex(compressed_pubkey, sizeof(compressed_pubkey));
-    printf("Signature: ");
-    print_hex(serialized_signature, sizeof(serialized_signature));
+    end = omp_get_wtime();
+    printf("verify - %d threads: run %d times, , total time: %f s, per second run %f tims\n", \
+			thread_num, count, (end-begin), count/(end-begin));
+//    finish = clock();
+//    total_time = (double)(finish - start) / CLOCKS_PER_SEC;
+//    printf("total time %f seconds\n", total_time);
+//    printf("verify: one second run %f timess\n", 1/(total_time/100000));
+//    printf("Is the signature valid? %s\n", is_signature_valid ? "true" : "false");
+//    printf("Secret Key: ");
+//    print_hex(seckey, sizeof(seckey));
+//    printf("Public Key: ");
+//    print_hex(compressed_pubkey, sizeof(compressed_pubkey));
+//    printf("Signature: ");
+//    print_hex(serialized_signature, sizeof(serialized_signature));
 
 
     /* This will clear everything from the context and free the memory */
@@ -156,4 +168,16 @@ int main(void) {
     memset(seckey, 0, sizeof(seckey));
 
     return 0;
+}
+
+int main(){
+    run(1);
+    run(2);
+    run(4);
+    run(8);
+    run(12);
+    run(32);
+
+    return 0;
+
 }
