@@ -10,6 +10,9 @@
 #include "sm3.h"
 #include "endian.h"
 #include "sm2.h"
+
+
+
 #if 0
 #include <random.h>
 #endif
@@ -47,34 +50,44 @@ int sm2_kdf(const uint8_t *in, size_t inlen, size_t outlen, uint8_t *out)
     return 1;
 }
 
+#include <time.h>
 static int secp256k1_sm2_sig_sign(const secp256k1_ecmult_gen_context *ctx, secp256k1_scalar *sigr, secp256k1_scalar *sigs, const secp256k1_scalar *seckeyInv, const secp256k1_scalar *seckeyInvSeckey, const secp256k1_scalar *message, const secp256k1_scalar *nonce)
 {
     unsigned char b[32];
     secp256k1_gej rp;
     secp256k1_ge r;
     secp256k1_scalar tmp;
+//    int i;
+//    clock_t begin_t, end_t;
+//    begin_t = clock();
+//    size_t times = 1000;
+//    for(i = 0; i < times; ++i) {
+    secp256k1_ecmult_gen(ctx, &rp, nonce);  // rp = [nonce]G
+//    }
+//    end_t = clock();
+//    double total_time = 1.0*(end_t-begin_t)/CLOCKS_PER_SEC;
+//    printf("%s, run %d times, total time: %f s, one time: %f s\n",
+//           "test", times, total_time, times/total_time);
 
-    secp256k1_ecmult_gen(ctx, &rp, nonce);
-    secp256k1_ge_set_gej(&r, &rp);
-    secp256k1_fe_normalize(&r.x);
-    secp256k1_fe_get_b32(b, &r.x);
-    secp256k1_scalar_set_b32(sigr, b, NULL);
+    // ge 表示 group element（群元素）
+    secp256k1_ge_set_gej(&r, &rp);  // 将雅可比坐标转换为仿射坐标
+    secp256k1_fe_normalize(&r.x);  // 相当于mod p操作
+    secp256k1_fe_get_b32(b, &r.x);  // 将有限域元素fe表示为字节数组
+    secp256k1_scalar_set_b32(sigr, b, NULL);  // sigr = x
+    secp256k1_scalar_add(sigr, sigr, message);  //  sigr = x + e
+    secp256k1_scalar_add(&tmp, sigr, nonce);  // tmp = r+k
 
-    secp256k1_scalar_add(sigr, sigr, message);
-    secp256k1_scalar_add(&tmp, sigr, nonce);
-
+    // 如果r=0或者r+k=n则返回a3继续
     if (secp256k1_scalar_is_zero(&tmp) || secp256k1_scalar_is_zero(sigr))
         return 0;
-
-    secp256k1_scalar_mul(&tmp, sigr, seckeyInvSeckey);
-    secp256k1_scalar_negate(&tmp, &tmp);
-    secp256k1_scalar_mul(sigs, nonce, seckeyInv);
-    secp256k1_scalar_add(sigs, sigs, &tmp);
+    secp256k1_scalar_mul(&tmp, sigr, seckeyInvSeckey);  // (1+d)^-1*d*r
+    secp256k1_scalar_negate(&tmp, &tmp);  // -(1+d)^-1*d*r
+    secp256k1_scalar_mul(sigs, nonce, seckeyInv);  // (1+d)^-1*nonce
+    secp256k1_scalar_add(sigs, sigs, &tmp);  // (1+d)^-1(nonce-d*r)
 
     secp256k1_scalar_clear(&tmp);
     secp256k1_ge_clear(&r);
     secp256k1_gej_clear(&rp);
-
     return (int)(!secp256k1_scalar_is_zero(sigs));
 }
 
@@ -107,7 +120,14 @@ static int secp256k1_sm2_sig_verify(const secp256k1_scalar *sigr, const secp256k
     secp256k1_scalar_add(&computed_r, &computed_r, message);
     return secp256k1_scalar_eq(sigr, &computed_r);
 }
-
+static void hex_dump_t(char prefix[], unsigned char bytes[], size_t bytes_len){
+    // 输出阶的字节数组
+    printf("%s: ", prefix);
+    for (int i = 0; i < bytes_len; ++i) {
+        printf("%02x", bytes[i]);
+    }
+    printf("\n");
+}
 int secp256k1_sm2_do_encrypt(const secp256k1_ecmult_gen_context *ctx, const secp256k1_ge *pubkey, const unsigned char *message, const unsigned char kLen, const secp256k1_scalar *nonce, unsigned char *C)
 {
     secp256k1_gej rp, pubkeyj;
@@ -118,18 +138,18 @@ int secp256k1_sm2_do_encrypt(const secp256k1_ecmult_gen_context *ctx, const secp
     unsigned char C3[32];
     unsigned char C2[kLen];
     /*
-        compute rp = [k]G
+        compute rp = [k]G, G是基点
     */
     secp256k1_ecmult_gen(ctx, &rp, nonce);
     secp256k1_ge_set_gej(&C1, &rp);
     secp256k1_fe_normalize(&C1.x);
     secp256k1_fe_normalize(&C1.y);
     /*
-        compute rp = [k]P
+        compute rp = [k]P, P是公钥
     */
     secp256k1_gej_set_ge(&pubkeyj, pubkey);
     secp256k1_ecmult(&rp, &pubkeyj, nonce, NULL);
-    secp256k1_ge_set_gej(&xy, &rp);
+    secp256k1_ge_set_gej(&xy, &rp);  // ge表示群元素，也就是椭圆曲线上的点
     secp256k1_fe_normalize(&xy.x);
     secp256k1_fe_normalize(&xy.y);
 
@@ -138,12 +158,13 @@ int secp256k1_sm2_do_encrypt(const secp256k1_ecmult_gen_context *ctx, const secp
     */
     secp256k1_fe_get_b32(b, &xy.x);
     secp256k1_fe_get_b32(b + 32, &xy.y);
+    hex_dump_t("enc-x2y2", b, 64);
     /*
     printf("In encryption, C1||C2 is :");
     print_hex(b,sizeof(b));
     */
     /*
-        compute C2 = kdf(b, klen)
+        compute t = kdf(b, klen)
     */
     sm2_kdf(b, sizeof(b), kLen, C2);
 
@@ -173,15 +194,15 @@ int secp256k1_sm2_do_encrypt(const secp256k1_ecmult_gen_context *ctx, const secp
     /*
         compute C = C1 || C2 || C3
     */
+    // C = C1 || C2 || C3
     secp256k1_fe_get_b32(C, &xy.x);
     secp256k1_fe_get_b32(C + 32, &xy.y);
-
     memcpy(C + 64, C2, sizeof(C2));
     memcpy(C + 64 + kLen, C3, sizeof(C3));
     return 1;
 }
 
-int secp256k1_sm2_do_decrypt(const unsigned char *cip, const unsigned char kLen,unsigned char *messsage, const secp256k1_scalar sec)
+int secp256k1_sm2_do_decrypt(const unsigned char *cip, const unsigned char kLen,unsigned char *messsage, const secp256k1_scalar *sec)
 {
     int i;
     int valid = -1;
@@ -231,7 +252,7 @@ int secp256k1_sm2_do_decrypt(const unsigned char *cip, const unsigned char kLen,
         compute point = [d]C1
     */
     secp256k1_gej_set_ge(&c1r, &point);
-    secp256k1_ecmult(&c1, &c1r, &sec, NULL);
+    secp256k1_ecmult(&c1, &c1r, sec, NULL);
     secp256k1_ge_set_gej(&point, &c1);
     secp256k1_fe_normalize(&point.x);
     secp256k1_fe_normalize(&point.y);
@@ -241,7 +262,7 @@ int secp256k1_sm2_do_decrypt(const unsigned char *cip, const unsigned char kLen,
     */
     secp256k1_fe_get_b32(b, &point.x);
     secp256k1_fe_get_b32(b + 32, &point.y);
-
+    hex_dump_t("dec-x2y2", b, 64);
     /*
         compute t = kdf(b, klen)
     */

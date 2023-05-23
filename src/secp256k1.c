@@ -553,13 +553,14 @@ static int secp256k1_sm2_sign_inner(const secp256k1_context* ctx, secp256k1_scal
         *recid = 0;
     }
     if (noncefp == NULL) {
-        noncefp = secp256k1_nonce_function_default;
+        noncefp = secp256k1_nonce_function_default;  // 生成随机数nonce
     }
 
     /* Fail if the secret key is invalid. */
     secp256k1_scalar_set_b32(&msg, msg32, NULL);
     secp256k1_scalar_set_b32(&secInv, seckeyInv, NULL);
     secp256k1_scalar_set_b32(&secInvSec, seckeyInvSeckey, NULL);
+
 
     while (1) {
         int is_nonce_valid;
@@ -570,11 +571,13 @@ static int secp256k1_sm2_sign_inner(const secp256k1_context* ctx, secp256k1_scal
         
         is_nonce_valid = secp256k1_scalar_set_b32_seckey(&non, nonce32);
         /* The nonce is still secret here, but it being invalid is is less likely than 1:2^255. */
-        secp256k1_declassify(ctx, &is_nonce_valid, sizeof(is_nonce_valid));
+        // 清理敏感数据
+//        secp256k1_declassify(ctx, &is_nonce_valid, sizeof(is_nonce_valid));
+
         if (is_nonce_valid) {
             ret = secp256k1_sm2_sig_sign(&ctx->ecmult_gen_ctx, r, s, &secInv, &secInvSec,&msg, &non);
             /* The final signature is no longer a secret, nor is the fact that we were successful or not. */
-            secp256k1_declassify(ctx, &ret, sizeof(ret));
+//            secp256k1_declassify(ctx, &ret, sizeof(ret));
             if (ret) {
                 break;
             }
@@ -648,7 +651,6 @@ static int secp256k1_sm2_encrytion_inner(const secp256k1_context* ctx, const uns
         if (!ret) {
             break;
         }
-        
         is_nonce_valid = secp256k1_scalar_set_b32_seckey(&non, nonce32);
         secp256k1_declassify(ctx, &is_nonce_valid, sizeof(is_nonce_valid));
         if (is_nonce_valid) {
@@ -677,7 +679,7 @@ int secp256k1_sm2_encryption(const secp256k1_context* ctx, const unsigned char *
 int secp256k1_sm2_decryption(const unsigned char *cip, const unsigned char kLen, unsigned char *msg, const unsigned char *seckey){
     secp256k1_scalar sec;
     secp256k1_scalar_set_b32(&sec, seckey, NULL);
-    return secp256k1_sm2_do_decrypt(cip, kLen, msg, sec);
+    return secp256k1_sm2_do_decrypt(cip, kLen, msg, &sec);
 }
 
 int secp256k1_sm2_sign(const secp256k1_context* ctx, secp256k1_ecdsa_signature *signature, const unsigned char *msghash32, const unsigned char *seckey, const unsigned char *seckeyInv, const unsigned char *seckeyInvSeckey, secp256k1_nonce_function noncefp, const void* noncedata) {

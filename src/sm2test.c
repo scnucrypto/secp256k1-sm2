@@ -18,6 +18,15 @@
 
 #include <omp.h>
 
+static void hex_dump(char prefix[], unsigned char bytes[], size_t bytes_len){
+    // 输出阶的字节数组
+    printf("%s: ", prefix);
+    for (int i = 0; i < bytes_len; ++i) {
+        printf("%02x", bytes[i]);
+    }
+    printf("\n");
+}
+
 int run(int thread_num) {
     /* Instead of signing the message directly, we must sign a 32-byte hash.
      * Here the message is "Hello, world!" and the hash function was SHA-256.
@@ -93,15 +102,29 @@ int run(int thread_num) {
      * and the default nonce function should never fail. */
     // unsigned char seckey[32] = "6ceecf6d2ba1cda1";
     secp256k1_sm2_precomputed(ctx, seckey, seckeyInv, seckeyInvSeckey);
-//    clock_t start,finish;
-//    double total_time, average_time;
-//    start = clock();
+#if 1
+    // 正确性验证
+    return_val = secp256k1_sm2_sign(ctx, &sig, msg_hash, seckey, seckeyInv, seckeyInvSeckey, NULL, NULL);
+    if(return_val){
+        return_val = secp256k1_ecdsa_signature_serialize_compact(ctx, serialized_signature, &sig);
+        hex_dump("sign", serialized_signature, 64);
+        is_signature_valid = secp256k1_sm2_verify(ctx, &sig, msg_hash, &pubkey);
+        if(is_signature_valid){
+            printf("通过!\n");
+        }else{
+            printf("验签失败!\n");
+        }
+    }else{
+        printf("签名失败!\n");
+    }
+#endif
     double begin,end;
-    size_t count = 500000;
+    size_t count = 1;
 
     begin = omp_get_wtime();
     #pragma omp parallel for num_threads(thread_num)
     for(int i = 0; i < count;i++){
+
         return_val = secp256k1_sm2_sign(ctx, &sig, msg_hash, seckey, seckeyInv, seckeyInvSeckey, NULL, NULL);
     }
     end = omp_get_wtime();

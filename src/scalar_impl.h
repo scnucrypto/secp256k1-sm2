@@ -33,7 +33,7 @@ static const secp256k1_scalar secp256k1_scalar_zero = SECP256K1_SCALAR_CONST(0, 
 
 static int secp256k1_scalar_set_b32_seckey(secp256k1_scalar *r, const unsigned char *bin) {
     int overflow;
-    secp256k1_scalar_set_b32(r, bin, &overflow);
+    secp256k1_scalar_set_b32(r, bin, &overflow);  // 把字节数组bin的值读入scalar中
     return (!overflow) & (!secp256k1_scalar_is_zero(r));
 }
 
