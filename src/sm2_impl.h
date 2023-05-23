@@ -137,6 +137,7 @@ int secp256k1_sm2_do_encrypt(const secp256k1_ecmult_gen_context *ctx, const secp
     unsigned char b[64];
     unsigned char C3[32];
     unsigned char C2[kLen];
+
     /*
         compute rp = [k]G, G是基点
     */
@@ -144,6 +145,7 @@ int secp256k1_sm2_do_encrypt(const secp256k1_ecmult_gen_context *ctx, const secp
     secp256k1_ge_set_gej(&C1, &rp);
     secp256k1_fe_normalize(&C1.x);
     secp256k1_fe_normalize(&C1.y);
+
     /*
         compute rp = [k]P, P是公钥
     */
@@ -158,11 +160,7 @@ int secp256k1_sm2_do_encrypt(const secp256k1_ecmult_gen_context *ctx, const secp
     */
     secp256k1_fe_get_b32(b, &xy.x);
     secp256k1_fe_get_b32(b + 32, &xy.y);
-    hex_dump_t("enc-x2y2", b, 64);
-    /*
-    printf("In encryption, C1||C2 is :");
-    print_hex(b,sizeof(b));
-    */
+
     /*
         compute t = kdf(b, klen)
     */
@@ -173,12 +171,9 @@ int secp256k1_sm2_do_encrypt(const secp256k1_ecmult_gen_context *ctx, const secp
     */
     for (i = 0; i < kLen; i++)
     {
-        C2[i] ^= message[i];
+        C2[i] = C2[i] ^ message[i];
     }
-    /*
-    printf("In encryption, C2 is :");
-    print_hex(C2,sizeof(C2));
-    */
+
     /*
         compute C3 = Hash(x_2 || M || y_2)
     */
@@ -187,16 +182,13 @@ int secp256k1_sm2_do_encrypt(const secp256k1_ecmult_gen_context *ctx, const secp
     sm3_update(&sm3_ctx, message, kLen);
     sm3_update(&sm3_ctx, b + 32, 32);
     sm3_finish(&sm3_ctx, C3);
-    /*
-    printf("In encryption, C3 is :");
-    print_hex(C3,sizeof(C3));
-    */
+
     /*
         compute C = C1 || C2 || C3
     */
     // C = C1 || C2 || C3
-    secp256k1_fe_get_b32(C, &xy.x);
-    secp256k1_fe_get_b32(C + 32, &xy.y);
+    secp256k1_fe_get_b32(C, &C1.x);
+    secp256k1_fe_get_b32(C + 32, &C1.y);
     memcpy(C + 64, C2, sizeof(C2));
     memcpy(C + 64 + kLen, C3, sizeof(C3));
     return 1;
@@ -209,7 +201,7 @@ int secp256k1_sm2_do_decrypt(const unsigned char *cip, const unsigned char kLen,
     unsigned char C1[64];
     unsigned char C2[kLen];
     unsigned char C3[32];
-    unsigned char b[32];
+    unsigned char b[64];
     unsigned char t[32];
     unsigned char M[32];
     unsigned char u[32];
@@ -217,6 +209,7 @@ int secp256k1_sm2_do_decrypt(const unsigned char *cip, const unsigned char kLen,
     secp256k1_ge point;
     secp256k1_fe x, y;
     SM3_CTX sm3_ctx;
+
     /*
         conv ert C1||C2||C3 to C1,C2,C3
     */
@@ -227,14 +220,6 @@ int secp256k1_sm2_do_decrypt(const unsigned char *cip, const unsigned char kLen,
     memcpy(C1, cip, 64);
     memcpy(C2, cip + 64, kLen);
     memcpy(C3, cip + 64 + kLen, 32);
-    /*
-    printf("In decryption, C1 is :");
-    print_hex(C1,sizeof(C1));
-    printf("In decryption, C2 is :");
-    print_hex(C2,sizeof(C2));
-    printf("In decryption, C3 is :");
-    print_hex(C3,sizeof(C3));
-    */
 
     /*
         check C1 whether on Curve
@@ -262,7 +247,7 @@ int secp256k1_sm2_do_decrypt(const unsigned char *cip, const unsigned char kLen,
     */
     secp256k1_fe_get_b32(b, &point.x);
     secp256k1_fe_get_b32(b + 32, &point.y);
-    hex_dump_t("dec-x2y2", b, 64);
+
     /*
         compute t = kdf(b, klen)
     */
@@ -285,7 +270,7 @@ int secp256k1_sm2_do_decrypt(const unsigned char *cip, const unsigned char kLen,
     sm3_update(&sm3_ctx, b + 32, 32);
     sm3_finish(&sm3_ctx, u);
 
-    if (memcmp(C2,u,32) == 0){
+    if (memcmp(C3,u,32) == 0){
         memcpy(messsage, M, sizeof(M));
         valid = 1;
     }

@@ -15,10 +15,6 @@ static void hex_dump(char prefix[], unsigned char bytes[], size_t bytes_len){
     }
     printf("\n");
 }
-
-static void print_ge(secp256k1_ge t){
-
-}
 int run(int thread_num){
     /* Instead of signing the message directly, we must sign a 32-byte hash.
      * Here the message is "Hello, world!" and the hash function was SHA-256.
@@ -70,19 +66,6 @@ int run(int thread_num){
     assert(return_val);
     assert(len == sizeof(compressed_pubkey));
 #if 1
-//    // 正确性测试
-//    secp256k1_ge Q;
-//    secp256k1_gej tj;
-//    secp256k1_ge t;
-//    secp256k1_scalar sec;
-//
-//    // 计算[d]G
-//    secp256k1_scalar_set_b32(&sec, seckey, NULL);
-//    secp256k1_ecmult_gen(ctx, &tj, &sec);
-//    secp256k1_ge_set_gej(&t, &tj);  // 将雅可比坐标转换为仿射坐标
-//    secp256k1_pubkey_load(ctx, &Q, &pubkey);
-
-
     secp256k1_sm2_encryption(ctx, msg_hash, sizeof(msg_hash), &pubkey, NULL, NULL, cip);
     hex_dump("明文", msg_hash, 32);
     hex_dump("密文", cip, 128);
