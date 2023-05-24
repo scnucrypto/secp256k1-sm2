@@ -8,6 +8,7 @@
 
 #include "../include/secp256k1.h"
 #include "../include/secp256k1_preallocated.h"
+#include "../include/random.h"
 
 #include "assumptions.h"
 #include "util.h"
@@ -24,6 +25,7 @@
 #include "hash_impl.h"
 #include "scratch_impl.h"
 #include "selftest.h"
+
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -541,6 +543,7 @@ static int secp256k1_ecdsa_sign_inner(const secp256k1_context* ctx, secp256k1_sc
     return ret;
 }
 
+
 static int secp256k1_sm2_sign_inner(const secp256k1_context* ctx, secp256k1_scalar* r, secp256k1_scalar* s, int* recid, const unsigned char *msg32, const unsigned char *seckey, const unsigned char *seckeyInv,const unsigned char *seckeyInvSeckey,secp256k1_nonce_function noncefp, const void* noncedata) {
     secp256k1_scalar secInv, secInvSec, non, msg;
     int ret = 0;
@@ -560,7 +563,6 @@ static int secp256k1_sm2_sign_inner(const secp256k1_context* ctx, secp256k1_scal
     secp256k1_scalar_set_b32(&msg, msg32, NULL);
     secp256k1_scalar_set_b32(&secInv, seckeyInv, NULL);
     secp256k1_scalar_set_b32(&secInvSec, seckeyInvSeckey, NULL);
-
 
     while (1) {
         int is_nonce_valid;
@@ -681,7 +683,6 @@ int secp256k1_sm2_decryption(const unsigned char *cip, const unsigned char kLen,
     secp256k1_scalar_set_b32(&sec, seckey, NULL);
     return secp256k1_sm2_do_decrypt(cip, kLen, msg, &sec);
 }
-
 int secp256k1_sm2_sign(const secp256k1_context* ctx, secp256k1_ecdsa_signature *signature, const unsigned char *msghash32, const unsigned char *seckey, const unsigned char *seckeyInv, const unsigned char *seckeyInvSeckey, secp256k1_nonce_function noncefp, const void* noncedata) {
     secp256k1_scalar r, s;
     int ret;
@@ -696,6 +697,417 @@ int secp256k1_sm2_sign(const secp256k1_context* ctx, secp256k1_ecdsa_signature *
     ret = secp256k1_sm2_sign_inner(ctx, &r, &s, NULL, msghash32, seckey, seckeyInv, seckeyInvSeckey,noncefp, noncedata);
     secp256k1_ecdsa_signature_save(signature, &r, &s);
     return ret;
+}
+static void ge_set_b64(secp256k1_ge *ge, const unsigned char *ge_b64){
+    secp256k1_fe ge_x, ge_y;
+    secp256k1_fe_set_b32(&ge_x, ge_b64);
+    secp256k1_fe_set_b32(&ge_y, ge_b64 + 32);
+    secp256k1_ge_set_xy(ge, &ge_x, &ge_y);
+}
+
+static void ge_get_b64(unsigned char *ge_b64, const secp256k1_ge *ge){
+    secp256k1_fe_get_b32(ge_b64, &ge->x);
+    secp256k1_fe_get_b32(ge_b64 + 32, &ge->y);
+}
+
+static void hex_dump(char prefix[], unsigned char bytes[], size_t bytes_len){
+    // 输出阶的字节数组
+    printf("%s: ", prefix);
+    for (int i = 0; i < bytes_len; ++i) {
+        printf("%02x", bytes[i]);
+    }
+    printf("\n");
+}
+
+// 输入输出均为ge
+static void ecmult_t(secp256k1_ge *r, const secp256k1_ge *a, const secp256k1_scalar *na, const secp256k1_scalar *ng){
+    secp256k1_gej aj, pubkeyj;
+
+    secp256k1_gej_set_ge(&aj, a);
+    secp256k1_ecmult(&pubkeyj, &aj, na, ng);
+    secp256k1_ge_set_gej(r, &pubkeyj);
+    secp256k1_fe_normalize(&r->x);
+    secp256k1_fe_normalize(&r->y);
+}
+
+void rand_seckey(const secp256k1_context* ctx, secp256k1_scalar *seckey){
+    unsigned char seckey_b32[32];
+    // 随机生成seckey_b
+    while (1) {
+        if (!fill_random(seckey_b32, 32)) {
+            printf("Failed to generate randomness\n");
+            return 1;
+        }
+        if (secp256k1_ec_seckey_verify(ctx, seckey_b32)) {
+            break;
+        }
+    }
+//    hex_dump("seckey_b32", seckey_b32, 32);
+    // 将kS_b32入kS中
+    secp256k1_scalar_set_b32(seckey, seckey_b32, NULL);
+}
+
+int secp256k1_sm2coop_seckey_create(const secp256k1_context* ctx, unsigned char *hdA_b32, unsigned char *WA_b64){
+    VERIFY_CHECK(ctx != NULL);
+    ARG_CHECK(secp256k1_ecmult_gen_context_is_built(&ctx->ecmult_gen_ctx));
+    int ret;
+    secp256k1_scalar hdA;
+    secp256k1_ge WA;
+    secp256k1_gej tmp;
+    // 随机生成hdA_b32
+    while (1) {
+        if (!fill_random(hdA_b32, 32)) {
+            printf("Failed to generate randomness\n");
+            return 1;
+        }
+        if (secp256k1_ec_seckey_verify(ctx, hdA_b32)) {
+            break;
+        }
+    }
+    // 将hd_b32写入hdA中
+    secp256k1_scalar_set_b32(&hdA, hdA_b32, NULL);
+
+    // 计算WA = [hdA]G
+    secp256k1_ecmult_gen(&ctx->ecmult_gen_ctx, &tmp, &hdA);
+    secp256k1_ge_set_gej(&WA, &tmp);
+    secp256k1_fe_normalize(&WA.x);
+    secp256k1_fe_normalize(&WA.y);
+
+    // 将WA保存在WA_b64
+    secp256k1_fe_get_b32(WA_b64, &WA.x);
+    secp256k1_fe_get_b32(WA_b64 + 32, &WA.y);
+}
+int secp256k1_sm2coop_pubkey_create(const secp256k1_context* ctx, unsigned char *pubkey_b64,const unsigned char *hdA_b32, const unsigned char *WS_b64){
+    VERIFY_CHECK(ctx != NULL);
+    ARG_CHECK(secp256k1_ecmult_gen_context_is_built(&ctx->ecmult_gen_ctx));
+    int ret;
+    secp256k1_scalar hdA;
+    secp256k1_scalar neg_one;
+    secp256k1_ge WS;
+    secp256k1_ge pubkey;
+    secp256k1_gej pubkeyj;
+    secp256k1_gej WSj;
+
+    // neg_one表示-1
+    secp256k1_scalar_set_int(&neg_one, 1);
+    secp256k1_scalar_negate(&neg_one, &neg_one);
+
+    // 将hdA_b32写入hdA中
+    secp256k1_scalar_set_b32(&hdA, hdA_b32, NULL);
+
+    // 将WS_b64写入WS中
+    ge_set_b64(&WS, WS_b64);
+
+    if (!secp256k1_ge_is_valid_var(&WS))
+    {
+        printf("unvalid WS point on secp256k1_sm2coop_pubkey_create\n");
+        return 0;
+    }
+
+    // 计算Pubkey = [hdA]WS-G
+    ecmult_t(&pubkey, &WS, &hdA, &neg_one);
+
+    // 将WA保存在WA_b64
+    ge_get_b64(pubkey_b64, &pubkey);
+}
+int secp256k1_sm2coop_sign_stepA(const secp256k1_context* ctx, unsigned char *kA_b32,unsigned char *QA_b64, const unsigned char *pubkey_b64) {
+    secp256k1_ge pubkey;
+    secp256k1_ge QA;
+
+    secp256k1_scalar one;
+    secp256k1_scalar kA;
+
+    int ret = 1;
+//    unsigned char kA_b32[32];
+
+    VERIFY_CHECK(ctx != NULL);
+    ARG_CHECK(secp256k1_ecmult_gen_context_is_built(&ctx->ecmult_gen_ctx));
+    ARG_CHECK(pubkey_b64 != NULL);
+
+    // 生成kA
+    while (1) {
+        if (!fill_random(kA_b32, 32)) {
+            printf("Failed to generate randomness\n");
+            return 1;
+        }
+        if (secp256k1_ec_seckey_verify(ctx, kA_b32)) {
+            break;
+        }
+    }
+
+    secp256k1_scalar_set_int(&one, 1);
+    ge_set_b64(&pubkey, pubkey_b64);
+    secp256k1_scalar_set_b32(&kA, kA_b32, NULL);
+    ecmult_t(&QA, &pubkey, &kA, &one);
+    ge_get_b64(QA_b64, &QA);
+    return ret;
+}
+
+int secp256k1_sm2coop_sign_stepB(const secp256k1_context* ctx, unsigned char *r_b32, unsigned char *s1_b32, const unsigned char *QA_b64, const unsigned char *WS_b64, const unsigned char *hdS_inv_b32, const unsigned char *hash_b32) {
+    secp256k1_ge WS;
+    secp256k1_gej WSj;
+    secp256k1_ge QA;
+
+    secp256k1_gej tmpj;
+    secp256k1_gej tmpj2;
+    secp256k1_ge tmp;
+
+    secp256k1_scalar one;
+    secp256k1_scalar kS;
+    secp256k1_scalar x;
+    secp256k1_scalar tmp_sca;
+
+    secp256k1_scalar hash;
+    secp256k1_scalar r;
+    secp256k1_scalar s1;
+    secp256k1_scalar hdS_inv;
+
+    int ret = 1;
+    unsigned char kS_b32[32];
+    unsigned char tmp_b32[32];
+
+    VERIFY_CHECK(ctx != NULL);
+    ARG_CHECK(secp256k1_ecmult_gen_context_is_built(&ctx->ecmult_gen_ctx));
+    ARG_CHECK(QA_b64);
+    ARG_CHECK(WS_b64);
+    ARG_CHECK(hdS_inv_b32);
+    ARG_CHECK(hash_b32);
+
+    // 生成kS_b32
+    while (1) {
+        if (!fill_random(kS_b32, 32)) {
+            printf("Failed to generate randomness\n");
+            return 1;
+        }
+        if (secp256k1_ec_seckey_verify(ctx, kS_b32)) {
+            break;
+        }
+    }
+
+    // tmpj = [ks]WS
+    secp256k1_scalar_set_b32(&kS, kS_b32, NULL);
+    ge_set_b64(&WS, WS_b64);
+    secp256k1_ecmult(&tmpj, &WSj, &kS, NULL);
+
+    // tmpj2 = [ks]WS + QA
+    secp256k1_gej_add_ge(&tmpj2, &tmpj, &QA);
+
+    // r = e+x
+    secp256k1_ge_set_gej(&tmp, &tmpj2);
+    secp256k1_fe_normalize(&tmp.x);
+    secp256k1_fe_get_b32(tmp_b32, &tmp.x);
+    secp256k1_scalar_set_b32(&x, tmp_b32, NULL);
+    secp256k1_scalar_set_b32(&hash, hash_b32, NULL);
+    secp256k1_scalar_add(&r, &hash, &x);
+    secp256k1_scalar_get_b32(r_b32, &r);
+
+    // s1 = hdS_inv*r + kS
+    secp256k1_scalar_set_b32(&hdS_inv, hdS_inv_b32, NULL);
+    secp256k1_scalar_mul(&tmp_sca, &hdS_inv, &r);
+    secp256k1_scalar_add(&s1, &tmp_sca, &kS);
+    secp256k1_scalar_get_b32(s1_b32, &s1);
+
+    return ret;
+}
+int secp256k1_sm2coop_sign_stepC(const secp256k1_context* ctx, unsigned char *s_b32, const unsigned char *s1_b32, const unsigned char *r_b32, const unsigned char *kA_b32, const unsigned char *hdA_inv_b32) {
+    secp256k1_scalar hdA_inv;
+    secp256k1_scalar s1;
+    secp256k1_scalar kA;
+    secp256k1_scalar r;
+    secp256k1_scalar neg_r;
+    secp256k1_scalar s;
+
+    int ret = 1;
+
+    VERIFY_CHECK(ctx != NULL);
+    ARG_CHECK(secp256k1_ecmult_gen_context_is_built(&ctx->ecmult_gen_ctx));
+
+    secp256k1_scalar_set_b32(&hdA_inv, hdA_inv_b32, NULL);
+    secp256k1_scalar_set_b32(&s1, s1_b32, NULL);
+    secp256k1_scalar_set_b32(&kA, kA_b32, NULL);
+    secp256k1_scalar_set_b32(&r, r_b32, NULL);
+    secp256k1_scalar_negate(&neg_r, &r);
+
+    // s = hdA_inv*s1 + kA - r
+    secp256k1_scalar_mul(&s, &hdA_inv, &s1);
+    secp256k1_scalar_add(&s, &s, &kA);
+    secp256k1_scalar_add(&s, &s, &neg_r);
+
+    secp256k1_scalar_get_b32(s_b32, &s);
+    return ret;
+}
+int secp256k1_sm2coop_enc_pubkey_create_stepA(const secp256k1_context* ctx, unsigned char *kA_b32, unsigned char *WA_b64){
+    VERIFY_CHECK(ctx != NULL);
+    ARG_CHECK(secp256k1_ecmult_gen_context_is_built(&ctx->ecmult_gen_ctx));
+    int ret;
+    secp256k1_scalar kA;
+    secp256k1_ge WA;
+    secp256k1_gej tmp;
+    // 随机生成hdA_b32
+    while (1) {
+        if (!fill_random(kA_b32, 32)) {
+            printf("Failed to generate randomness\n");
+            return 1;
+        }
+        if (secp256k1_ec_seckey_verify(ctx, kA_b32)) {
+            break;
+        }
+    }
+    // 将hd_b32写入hdA中
+    secp256k1_scalar_set_b32(&kA, kA_b32, NULL);
+
+    // 计算WA = [kA]G
+    secp256k1_ecmult_gen(&ctx->ecmult_gen_ctx, &tmp, &kA);
+    secp256k1_ge_set_gej(&WA, &tmp);
+    secp256k1_fe_normalize(&WA.x);
+    secp256k1_fe_normalize(&WA.y);
+
+    // 将WA保存在WA_b64
+    ge_get_b64(WA_b64, &WA);
+}
+
+int secp256k1_sm2coop_enc_pubkey_create_stepB(const secp256k1_context* ctx, unsigned char *eS_b32,unsigned char *c_b32, unsigned char *WS_b64, unsigned char *pubkey_b64, const unsigned char *WA_b64){
+    VERIFY_CHECK(ctx != NULL);
+    ARG_CHECK(secp256k1_ecmult_gen_context_is_built(&ctx->ecmult_gen_ctx));
+    int ret;
+
+    unsigned char tmp_b64[64];
+    unsigned char tmp_b32[32];
+    unsigned char eA_b32[32];
+
+    secp256k1_scalar kS;
+    secp256k1_scalar dA;
+    secp256k1_scalar eS;
+    secp256k1_scalar neg_eS;
+
+    secp256k1_scalar eA;
+
+    secp256k1_ge WA;
+    secp256k1_ge WS;
+    secp256k1_ge tmp_ge;
+    secp256k1_ge pubkey;
+
+    secp256k1_gej tmp_gej;
+
+    rand_seckey(ctx, &kS);
+    rand_seckey(ctx, &dA);
+    rand_seckey(ctx, &eS);
+
+    // eA = dA - eS
+    secp256k1_scalar_negate(&neg_eS, &eS);
+    secp256k1_scalar_add(&eA, &dA, &neg_eS);
+
+    // 计算WS = [kS]G
+    secp256k1_ecmult_gen(&ctx->ecmult_gen_ctx, &tmp_gej, &kS);
+    secp256k1_ge_set_gej(&WS, &tmp_gej);
+    secp256k1_fe_normalize(&WS.x);
+    secp256k1_fe_normalize(&WS.y);
+
+    // 计算(x, y) = [kS]WA
+    ge_set_b64(&WA, WA_b64);
+    ecmult_t(&tmp_ge, &WA, &kS, NULL);
+    // tmp_b64 = x||y
+    ge_get_b64(tmp_b64, &tmp_ge);
+
+    // tmp_32 = kdf(x||y, 32)
+    sm2_kdf(tmp_b64, 64, 32, tmp_b32);
+    secp256k1_scalar_get_b32(eA_b32, &eA);
+    // c = eA^kdf(x||y, 32)
+    for (int i = 0; i < 32; ++i){
+        c_b32[i] = eA_b32[i]^tmp_b32[i];
+    }
+
+    // pubkey = [dA]G
+    secp256k1_ecmult_gen(&ctx->ecmult_gen_ctx, &tmp_gej, &dA);
+    secp256k1_ge_set_gej(&pubkey, &tmp_gej);
+    secp256k1_fe_normalize(&pubkey.x);
+    secp256k1_fe_normalize(&pubkey.y);
+
+    secp256k1_scalar_get_b32(eS_b32, &eS);
+    ge_get_b64(WS_b64, &WS);
+    ge_get_b64(pubkey_b64, &pubkey);
+}
+
+int secp256k1_sm2coop_enc_pubkey_create_stepC(const secp256k1_context* ctx, unsigned char *eA_b32, const unsigned char *kA_b32, const unsigned char *c_b32, const unsigned char *WS_b64){
+    VERIFY_CHECK(ctx != NULL);
+    ARG_CHECK(secp256k1_ecmult_gen_context_is_built(&ctx->ecmult_gen_ctx));
+    int ret;
+
+    unsigned char tmp_b64[64];
+    unsigned char tmp_b32[32];
+    secp256k1_scalar kA;
+    secp256k1_ge WS;
+    secp256k1_ge tmp_ge;
+
+    // (x', y') = [kA]WS
+    secp256k1_scalar_set_b32(&kA, kA_b32, NULL);
+    ge_set_b64(&WS, WS_b64);
+    ecmult_t(&tmp_ge, &WS, &kA, NULL);
+    // tmp_b64 = x'||y'
+    ge_get_b64(tmp_b64, &tmp_ge);
+
+    // tmp_32 = kdf(x'||y', 32)
+    sm2_kdf(tmp_b64, 64, 32, tmp_b32);
+    // eA = c^kdf(x||y, 32)
+    for (int i = 0; i < 32; ++i){
+        eA_b32[i] = c_b32[i]^tmp_b32[i];
+    }
+}
+int secp256k1_sm2coop_dec_stepA(const secp256k1_context* ctx, unsigned char *C1_b64, const unsigned char *C_b){
+    VERIFY_CHECK(ctx != NULL);
+    ARG_CHECK(secp256k1_ecmult_gen_context_is_built(&ctx->ecmult_gen_ctx));
+    int ret;
+    memcpy(C1_b64, C_b, 64);
+}
+int secp256k1_sm2coop_dec_stepB(const secp256k1_context* ctx, unsigned char *CS1_b64, const unsigned char *eS_b32, const unsigned char *C1_b64){
+    VERIFY_CHECK(ctx != NULL);
+    ARG_CHECK(secp256k1_ecmult_gen_context_is_built(&ctx->ecmult_gen_ctx));
+    int ret;
+
+    secp256k1_scalar eS;
+
+    secp256k1_ge C1;
+    secp256k1_ge CS1;
+
+    secp256k1_scalar_set_b32(&eS, eS_b32, NULL);
+    ge_set_b64(&C1, C1_b64);
+    // CS1 = [eS]C1
+    ecmult_t(&CS1, &C1, &eS, NULL);
+    ge_get_b64(CS1_b64, &CS1);
+}
+int secp256k1_sm2coop_dec_stepC(const secp256k1_context* ctx, unsigned char *msg, const size_t klen, const unsigned char *C1_b64, const unsigned char *C2_bklen, const unsigned char *CS1_b64, const unsigned char *eA_b32){
+    VERIFY_CHECK(ctx != NULL);
+    ARG_CHECK(secp256k1_ecmult_gen_context_is_built(&ctx->ecmult_gen_ctx));
+    int ret;
+
+    unsigned char tmp_b64[64];
+    unsigned char tmp_bklen[klen];
+
+    secp256k1_scalar eA;
+
+    secp256k1_ge C1;
+    secp256k1_ge CS1;
+    secp256k1_ge tmp_ge;
+
+    secp256k1_gej tmp_gej;
+
+    secp256k1_scalar_set_b32(&eA, eA_b32, NULL);
+    ge_set_b64(&C1, C1_b64);
+    ge_set_b64(&CS1, CS1_b64);
+    ge_get_b64(tmp_b64, &CS1);
+
+    // tmp_ge = [eA]C1
+    ecmult_t(&tmp_ge, &C1, &eA, NULL);
+    // tmp_gej = CS1
+    secp256k1_gej_set_ge(&tmp_gej, &CS1);
+    // tmp_gej = [eA]C1 + CS1
+    secp256k1_gej_add_ge(&tmp_gej, &tmp_gej, &tmp_ge);
+
+    // tmp_b32 = kdf(x1||y1, klen)
+    sm2_kdf(tmp_b64, 64, klen, tmp_bklen);
+    for (int i = 0; i < klen; ++i) {
+        msg[i] = C2_bklen[i] ^ tmp_bklen[i];
+    }
 }
 
 int secp256k1_ec_seckey_verify(const secp256k1_context* ctx, const unsigned char *seckey) {

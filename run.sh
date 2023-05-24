@@ -6,4 +6,6 @@
 #make clean && make &&
 make &&
 #gcc -fopenmp ./src/sm2test.c ./.libs/libsecp256k1.a -o sm2_sign_test -I ./include && ./sm2_sign_test
-gcc -fopenmp ./src/sm2_enc_and_dec_test.c ./.libs/libsecp256k1.a -o sm2_enc_test -I ./include && ./sm2_enc_test
+#gcc -fopenmp ./src/sm2_enc_and_dec_test.c ./.libs/libsecp256k1.a -o sm2_enc_test -I ./include && ./sm2_enc_test
+#gcc -fopenmp ./src/sm2coop_test.c ./.libs/libsecp256k1.a -o sm2coop_sign_test -I ./include && ./sm2coop_sign_test
+gcc -fopenmp ./src/sm2coop_dec_test.c ./.libs/libsecp256k1.a -o sm2coop_dec_test -I ./include && ./sm2coop_dec_test

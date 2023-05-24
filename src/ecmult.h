@@ -34,7 +34,7 @@ static void secp256k1_ecmult(secp256k1_gej *r, const secp256k1_gej *a, const sec
 
 typedef int (secp256k1_ecmult_multi_callback)(secp256k1_scalar *sc, secp256k1_ge *pt, size_t idx, void *data);
 
-/**
+/**c
  * Multi-multiply: R = inp_g_sc * G + sum_i ni * Ai.
  * Chooses the right algorithm for a given number of points and scratch space
  * size. Resets and overwrites the given scratch space. If the points do not

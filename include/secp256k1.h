@@ -853,6 +853,83 @@ SECP256K1_API SECP256K1_WARN_UNUSED_RESULT int secp256k1_sm2_precomputed(
     unsigned char *seckeyInv, 
     unsigned char *seckeyInvSeckey)
 SECP256K1_ARG_NONNULL(1) SECP256K1_ARG_NONNULL(2);
+
+// 协同签名
+int secp256k1_sm2coop_seckey_create(
+        const secp256k1_context* ctx,
+        unsigned char *hdA_b32,
+        unsigned char *WA_b64);
+
+int secp256k1_sm2coop_pubkey_create(
+        const secp256k1_context* ctx,
+        unsigned char *pubkey_b64,
+        const unsigned char *hdA_b32,
+        const unsigned char *WS_b64);
+
+int secp256k1_sm2coop_sign_stepA(
+        const secp256k1_context* ctx,
+        unsigned char *kA_b32,
+        unsigned char *QA_b64,
+        const unsigned char *pubkey_b64);
+
+int secp256k1_sm2coop_sign_stepB(
+        const secp256k1_context* ctx,
+        unsigned char *r_b32,
+        unsigned char *s1_b32,
+        const unsigned char *QA_b64,
+        const unsigned char *WS_b64,
+        const unsigned char *hdS_inv_b32,
+        const unsigned char *hash_b32);
+
+int secp256k1_sm2coop_sign_stepC(
+        const secp256k1_context* ctx,
+        unsigned char *s_b32,
+        const unsigned char *s1_b32,
+        const unsigned char *r_b32,
+        const unsigned char *kA_b32,
+        const unsigned char *hdA_inv_b32);
+
+// 协同解密
+int secp256k1_sm2coop_enc_pubkey_create_stepA(
+        const secp256k1_context* ctx,
+        unsigned char *kA_b32,
+        unsigned char *WA_b64);
+
+int secp256k1_sm2coop_enc_pubkey_create_stepB(
+        const secp256k1_context* ctx,
+        unsigned char *eS_b32,
+        unsigned char *c_b32,
+        unsigned char *WS_b64,
+        unsigned char *pubkey_b64,
+        const unsigned char *WA_b64);
+
+int secp256k1_sm2coop_enc_pubkey_create_stepC(
+        const secp256k1_context* ctx,
+        unsigned char *eA_b32,
+        const unsigned char *kA_b32,
+        const unsigned char *c_b32,
+        const unsigned char *WS_b64);
+
+int secp256k1_sm2coop_dec_stepA(
+        const secp256k1_context* ctx,
+        unsigned char *C1_b64,
+        const unsigned char *C);
+
+int secp256k1_sm2coop_dec_stepB(
+        const secp256k1_context* ctx,
+        unsigned char *CS1_b64,
+        const unsigned char *eS_b32,
+        const unsigned char *C1_b64);
+
+int secp256k1_sm2coop_dec_stepC(
+        const secp256k1_context* ctx,
+        unsigned char *msg,
+        const size_t klen,
+        const unsigned char *C1_b64,
+        const unsigned char *C2_bklen,
+        const unsigned char *CS1_b64,
+        const unsigned char *eA_b32);
+
 #ifdef __cplusplus
 }
 #endif
