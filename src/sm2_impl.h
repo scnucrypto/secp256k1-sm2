@@ -62,7 +62,7 @@ static int secp256k1_sm2_sig_sign(const secp256k1_ecmult_gen_context *ctx, secp2
 //    begin_t = clock();
 //    size_t times = 1000;
 //    for(i = 0; i < times; ++i) {
-    secp256k1_ecmult_gen(ctx, &rp, nonce);  // rp = [nonce]G
+    secp256k1_ecmult_gen(ctx, &rp, nonce);  // rp = [nonce]G = [k]G
 //    }
 //    end_t = clock();
 //    double total_time = 1.0*(end_t-begin_t)/CLOCKS_PER_SEC;
@@ -80,9 +80,9 @@ static int secp256k1_sm2_sig_sign(const secp256k1_ecmult_gen_context *ctx, secp2
     // 如果r=0或者r+k=n则返回a3继续
     if (secp256k1_scalar_is_zero(&tmp) || secp256k1_scalar_is_zero(sigr))
         return 0;
-    secp256k1_scalar_mul(&tmp, sigr, seckeyInvSeckey);  // (1+d)^-1*d*r
-    secp256k1_scalar_negate(&tmp, &tmp);  // -(1+d)^-1*d*r
-    secp256k1_scalar_mul(sigs, nonce, seckeyInv);  // (1+d)^-1*nonce
+    secp256k1_scalar_mul(&tmp, sigr, seckeyInvSeckey);  // tmp=(1+d)^-1*d*r, seckeyInvSeckey=(1+d)^-1*d
+    secp256k1_scalar_negate(&tmp, &tmp);  // tmp=-(1+d)^-1*d*r
+    secp256k1_scalar_mul(sigs, nonce, seckeyInv);  // (1+d)^-1*nonce, seckeyInv=(1+d)^-1
     secp256k1_scalar_add(sigs, sigs, &tmp);  // (1+d)^-1(nonce-d*r)
 
     secp256k1_scalar_clear(&tmp);

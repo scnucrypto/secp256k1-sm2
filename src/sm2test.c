@@ -46,11 +46,13 @@ int run(int thread_num) {
     secp256k1_pubkey pubkey;
     secp256k1_ecdsa_signature sig;
 
+    // 空间分配
     secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     if (!fill_random(randomize, sizeof(randomize))) {
         printf("Failed to generate randomness\n");
         return 1;
     }
+    // 初始化系统参数
     return_val = secp256k1_context_randomize(ctx, randomize);
     assert(return_val);
 
@@ -75,7 +77,9 @@ int run(int thread_num) {
     // 正确性验证
     return_val = secp256k1_sm2_sign(ctx, &sig, msg_hash, seckey, seckeyInv, seckeyInvSeckey, NULL, NULL);
     if(return_val){
+        // sig -> serialized_signature
         return_val = secp256k1_ecdsa_signature_serialize_compact(ctx, serialized_signature, &sig);
+        // 以十六进制的形式输出字节数组
         hex_dump("sign", serialized_signature, 64);
         is_signature_valid = secp256k1_sm2_verify(ctx, &sig, msg_hash, &pubkey);
         if(is_signature_valid){
