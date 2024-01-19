@@ -11,7 +11,7 @@ valgrind_ctime_test
 *.a
 *.csv
 !.gitignore
-
+test.sh
 Makefile
 configure
 .libs/
@@ -58,3 +58,8 @@ src/stamp-h1
 libsecp256k1.pc
 
 .idea/
+
+sm2_sign_test
+sm2_enc_test
+sm2coop_sign_test
+sm2coop_dec_test
