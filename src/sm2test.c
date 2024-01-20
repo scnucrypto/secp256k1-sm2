@@ -94,7 +94,7 @@ int run(int thread_num) {
 #if 1
     // 多线程测试
     double begin,end;
-    size_t count = 1;
+    size_t count = 100000;
 
     // 签名性能测试
     begin = omp_get_wtime();
