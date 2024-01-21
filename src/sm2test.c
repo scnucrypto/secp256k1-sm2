@@ -52,7 +52,7 @@ int run(int thread_num) {
         printf("Failed to generate randomness\n");
         return 1;
     }
-    // 初始化系统参数
+    // 设置一些blinding values，为了提高安全性
     return_val = secp256k1_context_randomize(ctx, randomize);
     assert(return_val);
 
@@ -91,7 +91,7 @@ int run(int thread_num) {
         printf("签名失败!\n");
     }
 #endif
-#if 1
+#if 0
     // 多线程测试
     double begin,end;
     size_t count = 100000;
@@ -124,11 +124,11 @@ int run(int thread_num) {
 
 int main(){
     run(1);
-    run(2);
-    run(4);
-    run(8);
-    run(12);
-    run(32);
+    // run(2);
+    // run(4);
+    // run(8);
+    // run(12);
+    // run(32);
 
     return 0;
 

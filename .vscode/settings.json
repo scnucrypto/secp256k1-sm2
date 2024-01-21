@@ -4,6 +4,12 @@
         "random.h": "c",
         "time.h": "c",
         "ecdsa_impl.h": "c",
-        "sm2_impl.h": "c"
+        "sm2_impl.h": "c",
+        "scalar.h": "c",
+        "group.h": "c",
+        "field.h": "c",
+        "util.h": "c",
+        "field_5x52_impl.h": "c",
+        "field_5x52_int128_impl.h": "c"
     }
 }

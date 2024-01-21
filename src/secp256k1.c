@@ -1125,15 +1125,18 @@ static int secp256k1_ec_pubkey_create_helper(const secp256k1_ecmult_gen_context 
     secp256k1_gej pj;
     int ret;
 
+    // 成功返回1，否则返回0
     ret = secp256k1_scalar_set_b32_seckey(seckey_scalar, seckey);
+    // 如果!ret不为0，将seckey_scalar设置为secp256k1_scalar_one，否则seckey_scalar不变
     secp256k1_scalar_cmov(seckey_scalar, &secp256k1_scalar_one, !ret);
-
+    // 
     secp256k1_ecmult_gen(ecmult_gen_ctx, &pj, seckey_scalar);
     secp256k1_ge_set_gej(p, &pj);
     return ret;
 }
 
 int secp256k1_ec_pubkey_create(const secp256k1_context* ctx, secp256k1_pubkey *pubkey, const unsigned char *seckey) {
+    printf("[*] debug: start secp256k1_ec_pubkey_create...\n");
     secp256k1_ge p;
     secp256k1_scalar seckey_scalar;
     int ret = 0;
@@ -1145,8 +1148,8 @@ int secp256k1_ec_pubkey_create(const secp256k1_context* ctx, secp256k1_pubkey *p
 
     ret = secp256k1_ec_pubkey_create_helper(&ctx->ecmult_gen_ctx, &seckey_scalar, &p, seckey);
     secp256k1_pubkey_save(pubkey, &p);
+    // 清空中间变量的值
     secp256k1_memczero(pubkey, sizeof(*pubkey), !ret);
-
     secp256k1_scalar_clear(&seckey_scalar);
     return ret;
 }

@@ -48,6 +48,7 @@ static void secp256k1_ecmult_gen_scalar_diff(secp256k1_scalar* diff) {
     secp256k1_scalar_add(diff, diff, &neghalf);
 }
 
+// r = [gn]G
 static void secp256k1_ecmult_gen(const secp256k1_ecmult_gen_context *ctx, secp256k1_gej *r, const secp256k1_scalar *gn) {
     uint32_t comb_off;
     secp256k1_ge add;

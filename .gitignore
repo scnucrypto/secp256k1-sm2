@@ -63,3 +63,5 @@ sm2_sign_test
 sm2_enc_test
 sm2coop_sign_test
 sm2coop_dec_test
+
+test

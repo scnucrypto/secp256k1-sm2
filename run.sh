@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # 第一次运行请运行命令安装相关软件并生成库文件
 # sudo apt-get install autoreconf
 # sudo apt-get install libtool
@@ -13,7 +15,7 @@ fi
 # 获取和使用命令行参数
 echo "[+] run sm2_$1"
 
-# make clean && make -j12 &&
+make clean && make -j12
 
 if [ $1 = "sign" ]; then
     gcc -fopenmp ./src/sm2test.c ./.libs/libsecp256k1.a -o sm2_sign_test -I ./include && ./sm2_sign_test

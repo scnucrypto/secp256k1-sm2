@@ -21,11 +21,13 @@
 #define SECP256K1_N_C_2 (1)
 
 /* Limbs of half the secp256k1 order. */
+// 计算方法：n//2，不是n*2^-1
 #define SECP256K1_N_H_0 ((uint64_t)0xDFE92F46681B20A0ULL)
 #define SECP256K1_N_H_1 ((uint64_t)0x5D576E7357A4501DULL)
 #define SECP256K1_N_H_2 ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
 #define SECP256K1_N_H_3 ((uint64_t)0x7FFFFFFFFFFFFFFFULL)
 
+// 设置为0
 SECP256K1_INLINE static void secp256k1_scalar_clear(secp256k1_scalar *r) {
     r->d[0] = 0;
     r->d[1] = 0;
@@ -33,6 +35,7 @@ SECP256K1_INLINE static void secp256k1_scalar_clear(secp256k1_scalar *r) {
     r->d[3] = 0;
 }
 
+// 把一个64比特的数赋值给
 SECP256K1_INLINE static void secp256k1_scalar_set_int(secp256k1_scalar *r, unsigned int v) {
     r->d[0] = v;
     r->d[1] = 0;
@@ -57,6 +60,7 @@ SECP256K1_INLINE static unsigned int secp256k1_scalar_get_bits_var(const secp256
     }
 }
 
+// 如果a<N返回0，否则返回1
 SECP256K1_INLINE static int secp256k1_scalar_check_overflow(const secp256k1_scalar *a) {
     int yes = 0;
     int no = 0;
@@ -69,6 +73,8 @@ SECP256K1_INLINE static int secp256k1_scalar_check_overflow(const secp256k1_scal
     return yes;
 }
 
+// r = r - overflow*N, overflow的值为0或者1
+// 相当于 r + (2**256-overflow)
 SECP256K1_INLINE static int secp256k1_scalar_reduce(secp256k1_scalar *r, unsigned int overflow) {
     uint128_t t;
     VERIFY_CHECK(overflow <= 1);
@@ -117,6 +123,7 @@ static void secp256k1_scalar_cadd_bit(secp256k1_scalar *r, unsigned int bit, int
 #endif
 }
 
+// b32表示的是长度为32的byte
 static void secp256k1_scalar_set_b32(secp256k1_scalar *r, const unsigned char *b32, int *overflow) {
     int over;
     r->d[0] = (uint64_t)b32[31] | (uint64_t)b32[30] << 8 | (uint64_t)b32[29] << 16 | (uint64_t)b32[28] << 24 | (uint64_t)b32[27] << 32 | (uint64_t)b32[26] << 40 | (uint64_t)b32[25] << 48 | (uint64_t)b32[24] << 56;
@@ -136,10 +143,12 @@ static void secp256k1_scalar_get_b32(unsigned char *bin, const secp256k1_scalar*
     bin[24] = a->d[0] >> 56; bin[25] = a->d[0] >> 48; bin[26] = a->d[0] >> 40; bin[27] = a->d[0] >> 32; bin[28] = a->d[0] >> 24; bin[29] = a->d[0] >> 16; bin[30] = a->d[0] >> 8; bin[31] = a->d[0];
 }
 
+// 
 SECP256K1_INLINE static int secp256k1_scalar_is_zero(const secp256k1_scalar *a) {
     return (a->d[0] | a->d[1] | a->d[2] | a->d[3]) == 0;
 }
 
+// r = n - a，相当于 n+a的补码（~a+1）
 static void secp256k1_scalar_negate(secp256k1_scalar *r, const secp256k1_scalar *a) {
     uint64_t nonzero = 0xFFFFFFFFFFFFFFFFULL * (secp256k1_scalar_is_zero(a) == 0);
     uint128_t t = (uint128_t)(~a->d[0]) + SECP256K1_N_0 + 1;
@@ -152,6 +161,7 @@ static void secp256k1_scalar_negate(secp256k1_scalar *r, const secp256k1_scalar 
     r->d[3] = t & nonzero;
 }
 
+// 
 SECP256K1_INLINE static int secp256k1_scalar_is_one(const secp256k1_scalar *a) {
     return ((a->d[0] ^ 1) | a->d[1] | a->d[2] | a->d[3]) == 0;
 }

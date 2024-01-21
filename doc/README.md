@@ -17,3 +17,7 @@ run.sh: line 22: syntax error near unexpected token `elif'
 'un.sh: line 22: `elif [ $1 = "enc" ]; then
 ```
 2. 解决方法：修改换行符格式为LF，而不是windows的CRLF
+
+## 问题4：线程数越高，运行的次数越少？
+1. 原因：测试时的运行次数太少了，例如测试运行1次
+2. 解决方法：将测试次数改为100000
