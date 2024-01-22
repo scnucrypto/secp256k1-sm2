@@ -65,3 +65,4 @@ sm2coop_sign_test
 sm2coop_dec_test
 
 test
+tests_scalar

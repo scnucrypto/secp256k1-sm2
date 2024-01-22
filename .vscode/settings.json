@@ -10,6 +10,12 @@
         "field.h": "c",
         "util.h": "c",
         "field_5x52_impl.h": "c",
-        "field_5x52_int128_impl.h": "c"
+        "field_5x52_int128_impl.h": "c",
+        "secp256k1_preallocated.h": "c",
+        "basic-config.h": "c",
+        "ecmult_impl.h": "c",
+        "precomputed_ecmult.h": "c",
+        "libsecp256k1-config.h": "c",
+        "testrand_impl.h": "c"
     }
 }
