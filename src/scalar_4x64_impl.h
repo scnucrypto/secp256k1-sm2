@@ -9,24 +9,34 @@
 
 #include "modinv64_impl.h"
 
-/* Limbs of the secp256k1 order. */
-#define SECP256K1_N_0 ((uint64_t)0xBFD25E8CD0364141ULL)
-#define SECP256K1_N_1 ((uint64_t)0xBAAEDCE6AF48A03BULL)
-#define SECP256K1_N_2 ((uint64_t)0xFFFFFFFFFFFFFFFEULL)
-#define SECP256K1_N_3 ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
+// /* Limbs of the secp256k1 order. */
+// #define SECP256K1_N_0 ((uint64_t)0xBFD25E8CD0364141ULL)
+// #define SECP256K1_N_1 ((uint64_t)0xBAAEDCE6AF48A03BULL)
+// #define SECP256K1_N_2 ((uint64_t)0xFFFFFFFFFFFFFFFEULL)
+// #define SECP256K1_N_3 ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
+
+/* Limbs of the sm2_p256 order. */
+#define SECP256K1_N_0 ((uint64_t)0x5AE74EE7C32E79B7ULL)
+#define SECP256K1_N_1 ((uint64_t)0x297720630485628DULL)
+#define SECP256K1_N_2 ((uint64_t)0xE8B92435BF6FF7DDULL)
+#define SECP256K1_N_3 ((uint64_t)0x8542D69E4C044F18ULL)
 
 /* Limbs of 2^256 minus the secp256k1 order. */
 #define SECP256K1_N_C_0 (~SECP256K1_N_0 + 1)
 #define SECP256K1_N_C_1 (~SECP256K1_N_1)
 #define SECP256K1_N_C_2 (1)
-
+#define SECP256K1_N_C_3 (0)
 /* Limbs of half the secp256k1 order. */
 // 计算方法：n//2，不是n*2^-1
-#define SECP256K1_N_H_0 ((uint64_t)0xDFE92F46681B20A0ULL)
-#define SECP256K1_N_H_1 ((uint64_t)0x5D576E7357A4501DULL)
-#define SECP256K1_N_H_2 ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
-#define SECP256K1_N_H_3 ((uint64_t)0x7FFFFFFFFFFFFFFFULL)
-
+// #define SECP256K1_N_H_0 ((uint64_t)0xDFE92F46681B20A0ULL)
+// #define SECP256K1_N_H_1 ((uint64_t)0x5D576E7357A4501DULL)
+// #define SECP256K1_N_H_2 ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
+// #define SECP256K1_N_H_3 ((uint64_t)0x7FFFFFFFFFFFFFFFULL)
+/* Limbs of half the sm2_p256 order. */
+#define SECP256K1_N_H_0 ((uint64_t)0xAD73A773E1973CDBULL)
+#define SECP256K1_N_H_1 ((uint64_t)0x94BB90318242B146ULL)
+#define SECP256K1_N_H_2 ((uint64_t)0x745C921ADFB7FBEEULL)
+#define SECP256K1_N_H_3 ((uint64_t)0x42A16B4F2602278CULL)
 // 设置为0
 SECP256K1_INLINE static void secp256k1_scalar_clear(secp256k1_scalar *r) {
     r->d[0] = 0;
@@ -84,7 +94,7 @@ SECP256K1_INLINE static int secp256k1_scalar_reduce(secp256k1_scalar *r, unsigne
     r->d[1] = t & 0xFFFFFFFFFFFFFFFFULL; t >>= 64;
     t += (uint128_t)r->d[2] + overflow * SECP256K1_N_C_2;
     r->d[2] = t & 0xFFFFFFFFFFFFFFFFULL; t >>= 64;
-    t += (uint64_t)r->d[3];
+    t += (uint128_t)r->d[3] + overflow * SECP256K1_N_C_3;
     r->d[3] = t & 0xFFFFFFFFFFFFFFFFULL;
     return overflow;
 }
@@ -125,6 +135,7 @@ static void secp256k1_scalar_cadd_bit(secp256k1_scalar *r, unsigned int bit, int
 
 // b32表示的是长度为32的byte
 static void secp256k1_scalar_set_b32(secp256k1_scalar *r, const unsigned char *b32, int *overflow) {
+    // printf("[*] scalar_4x64_secp256k1_scalar_set_b32: start\n");
     int over;
     r->d[0] = (uint64_t)b32[31] | (uint64_t)b32[30] << 8 | (uint64_t)b32[29] << 16 | (uint64_t)b32[28] << 24 | (uint64_t)b32[27] << 32 | (uint64_t)b32[26] << 40 | (uint64_t)b32[25] << 48 | (uint64_t)b32[24] << 56;
     r->d[1] = (uint64_t)b32[23] | (uint64_t)b32[22] << 8 | (uint64_t)b32[21] << 16 | (uint64_t)b32[20] << 24 | (uint64_t)b32[19] << 32 | (uint64_t)b32[18] << 40 | (uint64_t)b32[17] << 48 | (uint64_t)b32[16] << 56;
@@ -508,23 +519,28 @@ static void secp256k1_scalar_reduce_512(secp256k1_scalar *r, const uint64_t *l) 
     c0 = l[0]; c1 = 0; c2 = 0;
     muladd_fast(n0, SECP256K1_N_C_0);
     extract_fast(m0);
+
     sumadd_fast(l[1]);
     muladd(n1, SECP256K1_N_C_0);
     muladd(n0, SECP256K1_N_C_1);
     extract(m1);
+
     sumadd(l[2]);
     muladd(n2, SECP256K1_N_C_0);
     muladd(n1, SECP256K1_N_C_1);
     sumadd(n0);
     extract(m2);
+
     sumadd(l[3]);
     muladd(n3, SECP256K1_N_C_0);
     muladd(n2, SECP256K1_N_C_1);
     sumadd(n1);
     extract(m3);
+    
     muladd(n3, SECP256K1_N_C_1);
     sumadd(n2);
     extract(m4);
+
     sumadd_fast(n3);
     extract_fast(m5);
     VERIFY_CHECK(c0 <= 1);
@@ -706,7 +722,9 @@ static void secp256k1_scalar_mul_512(uint64_t l[8], const secp256k1_scalar *a, c
     uint32_t c2 = 0;
 
     /* l[0..7] = a[0..3] * b[0..3]. */
+    // c1||c0 = c1
     muladd_fast(a->d[0], b->d[0]);
+    // 
     extract_fast(l[0]);
     muladd(a->d[0], b->d[1]);
     muladd(a->d[1], b->d[0]);

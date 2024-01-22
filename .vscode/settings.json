@@ -16,6 +16,7 @@
         "ecmult_impl.h": "c",
         "precomputed_ecmult.h": "c",
         "libsecp256k1-config.h": "c",
-        "testrand_impl.h": "c"
+        "testrand_impl.h": "c",
+        "scalar_4x64_impl.h": "c"
     }
 }

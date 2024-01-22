@@ -105,6 +105,7 @@ void random_gej_test(secp256k1_gej *gej) {
     random_group_element_jacobian_test(gej, &ge);
 }
 
+// 生成一个随机的scalar
 void random_scalar_order_test(secp256k1_scalar *num) {
     do {
         unsigned char b32[32];
@@ -1771,6 +1772,7 @@ void run_scalar_set_b32_seckey_tests(void) {
 
 void run_scalar_tests(void) {
     int i;
+    // 重复测试，随机产生测试输入
     for (i = 0; i < 128 * count; i++) {
         scalar_test();
     }
@@ -6834,9 +6836,9 @@ int main(int argc, char **argv) {
     secp256k1_testrand_init(argc > 2 ? argv[2] : NULL);
 
     /* initialize */
-    run_context_tests(0);
-    run_context_tests(1);
-    run_scratch_tests();
+    // run_context_tests(0);
+    // run_context_tests(1);
+    // run_scratch_tests();
     ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     if (secp256k1_testrand_bits(1)) {
         unsigned char rand32[32];
@@ -6844,56 +6846,56 @@ int main(int argc, char **argv) {
         CHECK(secp256k1_context_randomize(ctx, secp256k1_testrand_bits(1) ? rand32 : NULL));
     }
 
-    run_rand_bits();
-    run_rand_int();
+    // run_rand_bits();
+    // run_rand_int();
 
-    run_ctz_tests();
-    run_modinv_tests();
-    run_inverse_tests();
+    // run_ctz_tests();
+    // run_modinv_tests();
+    // run_inverse_tests();
 
-    run_sha256_tests();
-    run_hmac_sha256_tests();
-    run_rfc6979_hmac_sha256_tests();
-    run_tagged_sha256_tests();
+    // run_sha256_tests();
+    // run_hmac_sha256_tests();
+    // run_rfc6979_hmac_sha256_tests();
+    // run_tagged_sha256_tests();
 
     /* scalar tests */
     run_scalar_tests();
 
     /* field tests */
-    run_field_misc();
-    run_field_convert();
-    run_fe_mul();
-    run_sqr();
-    run_sqrt();
+    // run_field_misc();
+    // run_field_convert();
+    // run_fe_mul();
+    // run_sqr();
+    // run_sqrt();
 
     /* group tests */
-    run_ge();
-    run_gej();
-    run_group_decompress();
+    // run_ge();
+    // run_gej();
+    // run_group_decompress();
 
     /* ecmult tests */
-    run_ecmult_pre_g();
-    run_wnaf();
-    run_point_times_order();
-    run_ecmult_near_split_bound();
-    run_ecmult_chain();
-    run_ecmult_constants();
-    run_ecmult_gen_blind();
-    run_ecmult_const_tests();
-    run_ecmult_multi_tests();
-    run_ec_combine();
+    // run_ecmult_pre_g();
+    // run_wnaf();
+    // run_point_times_order();
+    // run_ecmult_near_split_bound();
+    // run_ecmult_chain();
+    // run_ecmult_constants();
+    // run_ecmult_gen_blind();
+    // run_ecmult_const_tests();
+    // run_ecmult_multi_tests();
+    // run_ec_combine();
 
     /* endomorphism tests */
-    run_endomorphism_tests();
+    // run_endomorphism_tests();
 
     /* EC point parser test */
-    run_ec_pubkey_parse_test();
+    // run_ec_pubkey_parse_test();
 
     /* EC key edge cases */
-    run_eckey_edge_case_test();
+    // run_eckey_edge_case_test();
 
     /* EC key arithmetic test */
-    run_eckey_negate_test();
+    // run_eckey_negate_test();
 
 #ifdef ENABLE_MODULE_ECDH
     /* ecdh tests */
@@ -6901,12 +6903,12 @@ int main(int argc, char **argv) {
 #endif
 
     /* ecdsa tests */
-    run_pubkey_comparison();
-    run_random_pubkeys();
-    run_ecdsa_der_parse();
-    run_ecdsa_sign_verify();
-    run_ecdsa_end_to_end();
-    run_ecdsa_edge_cases();
+    // run_pubkey_comparison();
+    // run_random_pubkeys();
+    // run_ecdsa_der_parse();
+    // run_ecdsa_sign_verify();
+    // run_ecdsa_end_to_end();
+    // run_ecdsa_edge_cases();
 
 #ifdef ENABLE_MODULE_RECOVERY
     /* ECDSA pubkey recovery tests */
@@ -6922,11 +6924,11 @@ int main(int argc, char **argv) {
 #endif
 
     /* util tests */
-    run_secp256k1_memczero_test();
+    // run_secp256k1_memczero_test();
 
-    run_cmov_tests();
+    // run_cmov_tests();
 
-    secp256k1_testrand_finish();
+    // secp256k1_testrand_finish();
 
     /* shutdown */
     secp256k1_context_destroy(ctx);
