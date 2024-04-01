@@ -623,69 +623,6 @@ static void secp256k1_scalar_sub_512(uint64_t r[8], uint64_t a[8], uint64_t b[8]
         r[i] = t[i];
     }
 }
-
-static void secp256k1_scalar_reduce_512_barrett(secp256k1_scalar *r, const uint64_t *d) {
-    uint64_t e[8], e1[8], e2[8], e_mul_N[8], c[8];
-    secp256k1_scalar t1, t2, e_scalar;
-    secp256k1_scalar N, u1;
-    
-    u1.d[0] = ((uint64_t)0xa06cd2ff7f30f1bbULL);
-    u1.d[1] = ((uint64_t)0x0c5ddb2eabdad96bULL);
-    u1.d[2] = ((uint64_t)0x9de7a14155fb561cULL);
-    u1.d[3] = ((uint64_t)0xebc9563c60576bb9ULL);
-
-    N.d[0] = ((uint64_t)0x5AE74EE7C32E79B7ULL);
-    N.d[1] = ((uint64_t)0x297720630485628DULL);
-    N.d[2] = ((uint64_t)0xE8B92435BF6FF7DDULL);
-    N.d[3] = ((uint64_t)0x8542D69E4C044F18ULL);
-
-    // t1 = d >> n
-    for (size_t i = 0; i < 4; i++)
-    {
-        t1.d[i] = (uint64_t)d[i+4];
-    } 
-
-    // e1 = u1 * (d>>n)
-    secp256k1_scalar_mul_512(e1, &u1, &t1);
-    
-    // e2 = (d>>n) << 256
-    for (size_t i = 0; i < 4; i++)
-    {
-        e2[i] = (uint64_t)0;
-        e2[i+4] = d[i+4];
-    }
-
-    // t1 = e = (e1+e2) >> 256
-    secp256k1_scalar_add_512(e, e1, e2);
-    for (size_t i = 0; i < 4; i++)
-    {
-        t1.d[i] = e[i+4];
-    }
-
-
-    // c = d - e*N
-    secp256k1_scalar_mul_512(e_mul_N, &t1, &N);
-    secp256k1_scalar_sub_512(c, d, e_mul_N);
-
-    // 返回的c是256比特的数
-    assert(c[4] == 0);
-    assert(c[5] == 0);
-    assert(c[6] == 0);
-    assert(c[7] == 0);
-
-    // r
-    for (size_t i = 0; i < 4; i++)
-    {
-        r->d[i] = c[i];
-    }
-
-    // 最多循环3次
-    while(secp256k1_scalar_check_overflow(r)){
-        secp256k1_scalar_reduce(r, secp256k1_scalar_check_overflow(r));
-    }
-    
-}
-
 static void secp256k1_scalar_mul_512(uint64_t l[8], const secp256k1_scalar *a, const secp256k1_scalar *b) {
 #ifdef USE_ASM_X86_64
     const uint64_t *pb = b->d;
@@ -853,6 +790,68 @@ static void secp256k1_scalar_mul_512(uint64_t l[8], const secp256k1_scalar *a, c
     VERIFY_CHECK(c1 == 0);
     l[7] = c0;
 #endif
+}
+
+static void secp256k1_scalar_reduce_512_barrett(secp256k1_scalar *r, const uint64_t *d) {
+    uint64_t e[8], e1[8], e2[8], e_mul_N[8], c[8];
+    secp256k1_scalar t1, t2, e_scalar;
+    secp256k1_scalar N, u1;
+    
+    u1.d[0] = ((uint64_t)0xa06cd2ff7f30f1bbULL);
+    u1.d[1] = ((uint64_t)0x0c5ddb2eabdad96bULL);
+    u1.d[2] = ((uint64_t)0x9de7a14155fb561cULL);
+    u1.d[3] = ((uint64_t)0xebc9563c60576bb9ULL);
+
+    N.d[0] = ((uint64_t)0x5AE74EE7C32E79B7ULL);
+    N.d[1] = ((uint64_t)0x297720630485628DULL);
+    N.d[2] = ((uint64_t)0xE8B92435BF6FF7DDULL);
+    N.d[3] = ((uint64_t)0x8542D69E4C044F18ULL);
+
+    // t1 = d >> n
+    for (size_t i = 0; i < 4; i++)
+    {
+        t1.d[i] = (uint64_t)d[i+4];
+    } 
+
+    // e1 = u1 * (d>>n)
+    secp256k1_scalar_mul_512(e1, &u1, &t1);
+    
+    // e2 = (d>>n) << 256
+    for (size_t i = 0; i < 4; i++)
+    {
+        e2[i] = (uint64_t)0;
+        e2[i+4] = d[i+4];
+    }
+
+    // t1 = e = (e1+e2) >> 256
+    secp256k1_scalar_add_512(e, e1, e2);
+    for (size_t i = 0; i < 4; i++)
+    {
+        t1.d[i] = e[i+4];
+    }
+
+
+    // c = d - e*N
+    secp256k1_scalar_mul_512(e_mul_N, &t1, &N);
+    secp256k1_scalar_sub_512(c, d, e_mul_N);
+
+    // 返回的c是256比特的数
+    assert(c[4] == 0);
+    assert(c[5] == 0);
+    assert(c[6] == 0);
+    assert(c[7] == 0);
+
+    // r
+    for (size_t i = 0; i < 4; i++)
+    {
+        r->d[i] = c[i];
+    }
+
+    // 最多循环3次
+    while(secp256k1_scalar_check_overflow(r)){
+        secp256k1_scalar_reduce(r, secp256k1_scalar_check_overflow(r));
+    }
+    
 }
 
 #undef sumadd
