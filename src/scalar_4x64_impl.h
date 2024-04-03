@@ -628,19 +628,24 @@ static int secp256k1_scalar_add_512(uint64_t r[8], uint64_t a[8], uint64_t b[8])
 static void secp256k1_scalar_sub_512(uint64_t r[8], uint64_t a[8], uint64_t b[8]){
     int i;
     uint128_t t[8];
-
+    uint128_t tmp = (uint128_t)1<<64;
+    printf("%llx%016llx\n", (unsigned long long)(tmp >> 64), (unsigned long long)tmp);
     // 借1
     t[0] = ((uint128_t)1<<64) + a[0] - b[0];
+
+    printf("0: %016llx, %016llx, %llx%016llx\n", a[0], b[0], (unsigned long long)(t[0] >> 64), (unsigned long long)t[0]);
     for (i = 1; i < 7; i++)
     {
-        t[i] = ((uint64_t)0xFFFFFFFFFFFFFFFFULL) + a[i] - b[i] + (t[i-1] >> 64);
+        t[i] = ((uint128_t)0xFFFFFFFFFFFFFFFFULL) + a[i] - b[i] + (t[i-1] >> 64);
+        printf("%d: %016llx, %016llx, %llu%016llx\n", i, a[i], b[i], (unsigned long long)(t[i] >> 64), (unsigned long long)t[i]);
     }
     // 借完1后减去1
     t[i] = a[i] - b[i] - 1 + (t[i-1] >> 64);
-    
+    printf("%d: %016llx, %016llx, %llu%016llx\n", i, a[i], b[i], (unsigned long long)(t[i] >> 64), (unsigned long long)t[i]);
+
     for (size_t i = 0; i < 8; i++)
     {
-        r[i] = t[i];
+        r[i] = ((uint64_t)t[i]&0xFFFFFFFFFFFFFFFFULL);
     }
 }
 static void secp256k1_scalar_mul_512(uint64_t l[8], const secp256k1_scalar *a, const secp256k1_scalar *b) {
@@ -813,7 +818,7 @@ static void secp256k1_scalar_mul_512(uint64_t l[8], const secp256k1_scalar *a, c
 #endif
 }
 
-static void secp256k1_scalar_reduce_512_barrett(secp256k1_scalar *r, const uint64_t *d) {
+static void secp256k1_scalar_reduce_512_barrett_gmssl(secp256k1_scalar *r, const uint64_t *d) {
     uint64_t e[8], e1[8], e2[8], e_mul_N[8], c[8];
     secp256k1_scalar t1, t2, e_scalar;
     secp256k1_scalar N, u1;
@@ -873,6 +878,74 @@ static void secp256k1_scalar_reduce_512_barrett(secp256k1_scalar *r, const uint6
     }
 }
 
+static void secp256k1_scalar_reduce_512_barrett(secp256k1_scalar *r, const uint64_t *d) {
+    uint64_t e[8], e1[8], e2[8], e_mul_N[8], c[8];
+    secp256k1_scalar t1, t2, e_scalar;
+    secp256k1_scalar N, u1;
+    
+    u1.d[0] = ((uint64_t)0xa06cd2ff7f30f1bbULL);
+    u1.d[1] = ((uint64_t)0x0c5ddb2eabdad96bULL);
+    u1.d[2] = ((uint64_t)0x9de7a14155fb561cULL);
+    u1.d[3] = ((uint64_t)0xebc9563c60576bb9ULL);
+
+    N.d[0] = ((uint64_t)0x5AE74EE7C32E79B7ULL);
+    N.d[1] = ((uint64_t)0x297720630485628DULL);
+    N.d[2] = ((uint64_t)0xE8B92435BF6FF7DDULL);
+    N.d[3] = ((uint64_t)0x8542D69E4C044F18ULL);
+
+    // t1 = d >> n
+    for (size_t i = 0; i < 4; i++)
+    {
+        t1.d[i] = (uint64_t)d[i+4];
+    } 
+
+    // e1 = u1 * (d>>n)
+    secp256k1_scalar_mul_512(e1, &u1, &t1);
+    secp256k1_scalar_print_slims("e1", e1, 8);
+
+    // e2 = (d>>n) << 256
+    for (size_t i = 0; i < 4; i++)
+    {
+        e2[i] = (uint64_t)0;
+        e2[i+4] = (uint64_t)d[i+4];
+    }
+    secp256k1_scalar_print_slims("e2", e2, 8);
+    // t1 = e = (e1+e2) >> 256
+    int overfollow = secp256k1_scalar_add_512(e, e1, e2);
+
+
+    assert(overfollow == 0);
+    for (size_t i = 0; i < 4; i++)
+    {
+        t1.d[i] = e[i+4];
+    }
+    secp256k1_scalar_print("e", &t1);
+
+    // c = d - e*N
+    secp256k1_scalar_mul_512(e_mul_N, &t1, &N);
+    secp256k1_scalar_print_slims("eN", e_mul_N, 8);
+    
+    secp256k1_scalar_sub_512(c, d, e_mul_N);
+    secp256k1_scalar_print_slims("c", c, 8);
+
+    // 返回的c是256比特的数
+    assert(c[4] == 0);
+    assert(c[5] == 0);
+    assert(c[6] == 0);
+    assert(c[7] == 0);
+
+    // r
+    for (size_t i = 0; i < 4; i++)
+    {
+        r->d[i] = c[i];
+    }
+
+    // 最多循环3次
+    while(secp256k1_scalar_check_overflow(r)){
+        secp256k1_scalar_reduce(r, secp256k1_scalar_check_overflow(r));
+    }
+}
+
 #undef sumadd
 #undef sumadd_fast
 #undef muladd
@@ -882,6 +955,35 @@ static void secp256k1_scalar_reduce_512_barrett(secp256k1_scalar *r, const uint6
 
 static void secp256k1_scalar_mul(secp256k1_scalar *r, const secp256k1_scalar *a, const secp256k1_scalar *b) {
     uint64_t l[8];
+
+#if 1
+    secp256k1_scalar t1, t2;
+    
+    t1.d[0] = ((uint64_t)0x40CAB74436C67F2BULL);
+    t1.d[1] = ((uint64_t)0x3CB875791AA6CE48ULL);
+    t1.d[2] = ((uint64_t)0xD26B345CB9869C3DULL);
+    t1.d[3] = ((uint64_t)0x7ED8740E8254B187ULL);
+
+    t2.d[0] = ((uint64_t)0xA1E0762D15A00478ULL);
+    t2.d[1] = ((uint64_t)0xF70F9A5EF0962A9CULL);
+    t2.d[2] = ((uint64_t)0x8C29CEB1D29C88CDULL);
+    t2.d[3] = ((uint64_t)0x61C97560C3705903ULL);
+
+    secp256k1_scalar_mul_512(l, &t1, &t2);
+
+    // 验证乘法结果：passed
+    secp256k1_scalar_print("t1", &t1);
+    secp256k1_scalar_print("t2", &t2);
+    // 0x3073d6157dd31dfa4539816d0ea5ee6ee2b72dd3062960b18f45b392fd7cfdf48ec7fed8ae4b8c21c70d9794f9e745d8be5fa96dcf25eab71d25a9e1c8e84828
+    secp256k1_scalar_print_slims("l", l, 8);
+
+    // 验证取模结果
+    secp256k1_scalar_reduce_512_barrett(r, l);
+
+    // 验证取模结果：
+    secp256k1_scalar_print("r", r);
+
+#endif 
 
     secp256k1_scalar_mul_512(l, a, b);
 
@@ -893,6 +995,12 @@ static void secp256k1_scalar_mul(secp256k1_scalar *r, const secp256k1_scalar *a,
 #endif
 
     secp256k1_scalar_reduce_512_barrett(r, l);
+#if 0
+    // 验证取模结果：
+    secp256k1_scalar_print_slims("l", l, 8);
+    secp256k1_scalar_print("r", r);
+    printf("\n");
+#endif
 
 }
 
