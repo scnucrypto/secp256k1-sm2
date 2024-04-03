@@ -16,6 +16,10 @@
 #include <stdio.h>
 #include <limits.h>
 
+#define PRINT_FLAG(msg) do { \
+    fprintf(stdout, "[*] PRINT_FLAG: %s\n", msg); \
+} while(0)
+
 typedef struct {
     void (*fn)(const char *text, void* data);
     const void* data;

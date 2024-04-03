@@ -22,6 +22,8 @@
 #else
 #error "Please select wide multiplication implementation"
 #endif
+static void secp256k1_scalar_print_slims(char *pre, uint64_t *r, size_t count);
+static void secp256k1_scalar_print(char *pre, secp256k1_scalar *r);
 
 /** Clear a scalar to prevent the leak of sensitive data. */
 static void secp256k1_scalar_clear(secp256k1_scalar *r);

@@ -66,8 +66,6 @@ void random_scalar_order_b32(unsigned char *b32) {
 
 
 /***** SCALAR TESTS *****/
-
-
 void scalar_test(void) {
     secp256k1_scalar s;
     secp256k1_scalar s1;
@@ -80,11 +78,12 @@ void scalar_test(void) {
     /* Set 's1' to a random scalar, with value 's1num'. */
     random_scalar_order_test(&s1);
 
-    /* Set 's2' to a random scalar, with value 'snum2', and byte array representation 'c'. */
+    /* Set 's2' to a random scalar, with value 's1num', and byte array representation 'c'. */
     random_scalar_order_test(&s2);
     secp256k1_scalar_get_b32(c, &s2);
 
-    {
+    {  
+        PRINT_FLAG("test secp256k1_scalar_get_bits");
         int i;
         /* Test that fetching groups of 4 bits from a scalar and recursing n(i)=16*n(i-1)+p(i) reconstructs it. */
         secp256k1_scalar n;
@@ -93,6 +92,7 @@ void scalar_test(void) {
             secp256k1_scalar t;
             int j;
             secp256k1_scalar_set_int(&t, secp256k1_scalar_get_bits(&s, 256 - 4 - i, 4));
+            // n = 2^4 * n
             for (j = 0; j < 4; j++) {
                 secp256k1_scalar_add(&n, &n, &n);
             }
@@ -138,6 +138,7 @@ void scalar_test(void) {
     }
 
     {
+        PRINT_FLAG("Test commutativity of add");
         /* Test commutativity of add. */
         secp256k1_scalar r1, r2;
         secp256k1_scalar_add(&r1, &s1, &s2);
@@ -169,10 +170,13 @@ void scalar_test(void) {
     }
 
     {
+        PRINT_FLAG("Test commutativity of mul");
         /* Test commutativity of mul. */
         secp256k1_scalar r1, r2;
         secp256k1_scalar_mul(&r1, &s1, &s2);
+        PRINT_FLAG("End commutativity of mul 1");
         secp256k1_scalar_mul(&r2, &s2, &s1);
+        PRINT_FLAG("End commutativity of mul 2");
         CHECK(secp256k1_scalar_eq(&r1, &r2));
     }
 
@@ -187,6 +191,7 @@ void scalar_test(void) {
     }
 
     {
+        PRINT_FLAG("Test associativity of mul");
         /* Test associativity of mul. */
         secp256k1_scalar r1, r2;
         secp256k1_scalar_mul(&r1, &s1, &s2);
@@ -858,6 +863,7 @@ void run_scalar_tests(void) {
 }
 
 int main(int argc, char **argv) {
+    
     /* find iteration count */
     if (argc > 1) {
         count = strtol(argv[1], NULL, 0);
@@ -886,6 +892,7 @@ int main(int argc, char **argv) {
 
 
     /* scalar tests */
+    PRINT_FLAG("start scalar_test");
     scalar_test();
     // run_scalar_tests();
 
