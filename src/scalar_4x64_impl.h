@@ -1078,9 +1078,14 @@ static void secp256k1_scalar_to_signed62(secp256k1_modinv64_signed62 *r, const s
     r->v[4] =  a3 >> 56;
 }
 
+// static const secp256k1_modinv64_modinfo secp256k1_const_modinfo_scalar = {
+//     {{0x3FD25E8CD0364141LL, 0x2ABB739ABD2280EELL, -0x15LL, 0, 256}},
+//     0x34F20099AA774EC1LL
+// };
+
 static const secp256k1_modinv64_modinfo secp256k1_const_modinfo_scalar = {
-    {{0x3FD25E8CD0364141LL, 0x2ABB739ABD2280EELL, -0x15LL, 0, 256}},
-    0x34F20099AA774EC1LL
+    {{0x13bbf40939d54123LL, 0x80f7dac871814adLL, -0x9LL, -0x4000000000LL, 256}},
+    0xd8061778dcaf68bLL
 };
 
 static void secp256k1_scalar_inverse(secp256k1_scalar *r, const secp256k1_scalar *x) {
