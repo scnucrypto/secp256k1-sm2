@@ -17,10 +17,10 @@
 // #define SECP256K1_N_3 ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
 
 /* Limbs of the sm2_p256 order. */
-#define SECP256K1_N_0 ((uint64_t)0x5AE74EE7C32E79B7ULL)
-#define SECP256K1_N_1 ((uint64_t)0x297720630485628DULL)
-#define SECP256K1_N_2 ((uint64_t)0xE8B92435BF6FF7DDULL)
-#define SECP256K1_N_3 ((uint64_t)0x8542D69E4C044F18ULL)
+#define SECP256K1_N_0 ((uint64_t)0x53BBF40939D54123ULL)
+#define SECP256K1_N_1 ((uint64_t)0x7203DF6B21C6052BULL)
+#define SECP256K1_N_2 ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
+#define SECP256K1_N_3 ((uint64_t)0xFFFFFFFEFFFFFFFFULL)
 
 // /* Limbs of 2^256 minus the secp256k1 order. */
 // #define SECP256K1_N_C_0 (~SECP256K1_N_0 + 1)
@@ -29,10 +29,10 @@
 // #define SECP256K1_N_C_3 (0)
 
 /* Limbs of 2^256 minus the sm2_p256 order. */
-#define SECP256K1_N_C_0 ((uint64_t)0xA518B1183CD18649ULL)
-#define SECP256K1_N_C_1 ((uint64_t)0xD688DF9CFB7A9D72ULL)
-#define SECP256K1_N_C_2 ((uint64_t)0x1746DBCA40900822ULL)
-#define SECP256K1_N_C_3 ((uint64_t)0x7ABD2961B3FBB0E7ULL)
+#define SECP256K1_N_C_0 ((uint64_t)0xAC440BF6C62ABEDDULL)
+#define SECP256K1_N_C_1 ((uint64_t)0x8DFC2094DE39FAD4ULL)
+#define SECP256K1_N_C_2 ((uint64_t)0x0000000000000000ULL)
+#define SECP256K1_N_C_3 ((uint64_t)0x0000000100000000ULL)
 
 /* Limbs of half the secp256k1 order. */
 // 计算方法：n//2，不是n*2^-1
@@ -42,10 +42,10 @@
 // #define SECP256K1_N_H_3 ((uint64_t)0x7FFFFFFFFFFFFFFFULL)
 
 /* Limbs of half the sm2_p256 order. */
-#define SECP256K1_N_H_0 ((uint64_t)0xAD73A773E1973CDBULL)
-#define SECP256K1_N_H_1 ((uint64_t)0x94BB90318242B146ULL)
-#define SECP256K1_N_H_2 ((uint64_t)0x745C921ADFB7FBEEULL)
-#define SECP256K1_N_H_3 ((uint64_t)0x42A16B4F2602278CULL)
+#define SECP256K1_N_H_0 ((uint64_t)0xA9DDFA049CEAA091ULL)
+#define SECP256K1_N_H_1 ((uint64_t)0xB901EFB590E30295ULL)
+#define SECP256K1_N_H_2 ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
+#define SECP256K1_N_H_3 ((uint64_t)0x7FFFFFFF7FFFFFFFULL)
 
 static void secp256k1_scalar_print_slims(char *pre, uint64_t *r, size_t count){
     printf("%s: ", pre);
@@ -103,6 +103,7 @@ SECP256K1_INLINE static int secp256k1_scalar_check_overflow(const secp256k1_scal
     int yes = 0;
     int no = 0;
     no |= (a->d[3] < SECP256K1_N_3); /* No need for a > check. */
+    yes |= (a->d[3] > SECP256K1_N_3) & ~no;
     no |= (a->d[2] < SECP256K1_N_2);
     yes |= (a->d[2] > SECP256K1_N_2) & ~no;
     no |= (a->d[1] < SECP256K1_N_1);
@@ -625,7 +626,20 @@ static int secp256k1_scalar_add_512(uint64_t r[8], uint64_t a[8], uint64_t b[8])
     return carry;
 }
 
-// 
+// 指定长度的数组相加，返回1表示结果溢出
+// a[len]、b[len]、r[len+1]
+static int secp256k1_scalar_add_len(uint64_t r[], uint64_t a[], uint64_t b[], size_t len){
+    uint128_t t = 0, carry = 0;
+    for (size_t i = 0; i < len; i++)
+    {   
+        t = carry + a[i] + b[i];
+        r[i] = t;
+        carry = t>>64;
+    }
+    r[len] = carry;
+    return carry;
+}
+
 static void secp256k1_scalar_sub_512(uint64_t r[8], uint64_t a[8], uint64_t b[8]){
     int i;
     uint128_t t[8];
@@ -879,20 +893,52 @@ static void secp256k1_scalar_reduce_512_barrett_gmssl(secp256k1_scalar *r, const
     }
 }
 
+static int secp256k1_scalar_cmp_512(uint64_t a[], uint64_t b[]){
+    for (size_t i = 7; i >= 0; i--)
+    {
+        if (a[i] > b[i])
+        {
+            return 1;
+        }
+        if (a[i] < b[i])
+        {
+            return -1;
+        }
+    }
+    return 0;
+}
 static void secp256k1_scalar_reduce_512_barrett(secp256k1_scalar *r, const uint64_t *d) {
-    uint64_t e[8], e1[8], e2[8], e_mul_N[8], c[8];
+    uint64_t e[8], e1[8], e2[8], e_mul_N[8], c[8], N_rot256[8], N_arr[8];
     secp256k1_scalar t1, t2, e_scalar;
     secp256k1_scalar N, u1;
-    
-    u1.d[0] = ((uint64_t)0xa06cd2ff7f30f1bbULL);
-    u1.d[1] = ((uint64_t)0x0c5ddb2eabdad96bULL);
-    u1.d[2] = ((uint64_t)0x9de7a14155fb561cULL);
-    u1.d[3] = ((uint64_t)0xebc9563c60576bb9ULL);
+    u1.d[0] = ((uint64_t)0x12ac6361f15149a0ULL);
+    u1.d[1] = ((uint64_t)0x8dfc2096fa323c01ULL);
+    u1.d[2] = ((uint64_t)0x100000001ULL);
+    u1.d[3] = ((uint64_t)0x100000001ULL);
 
-    N.d[0] = ((uint64_t)0x5AE74EE7C32E79B7ULL);
-    N.d[1] = ((uint64_t)0x297720630485628DULL);
-    N.d[2] = ((uint64_t)0xE8B92435BF6FF7DDULL);
-    N.d[3] = ((uint64_t)0x8542D69E4C044F18ULL);
+    N.d[0] = SECP256K1_N_0;
+    N.d[1] = SECP256K1_N_1;
+    N.d[2] = SECP256K1_N_2;
+    N.d[3] = SECP256K1_N_3;
+
+    // N_rot256 = N << 256
+    N_rot256[0] = 0;
+    N_rot256[1] = 0;
+    N_rot256[2] = 0;
+    N_rot256[3] = 0;
+    N_rot256[4] = SECP256K1_N_0;
+    N_rot256[5] = SECP256K1_N_1;
+    N_rot256[6] = SECP256K1_N_2;
+    N_rot256[7] = SECP256K1_N_3;
+
+    N_arr[0] = SECP256K1_N_0;
+    N_arr[1] = SECP256K1_N_1;
+    N_arr[2] = SECP256K1_N_2;
+    N_arr[3] = SECP256K1_N_3;
+    N_arr[4] = 0;
+    N_arr[5] = 0;
+    N_arr[6] = 0;
+    N_arr[7] = 0;
 
     // t1 = d >> n
     for (size_t i = 0; i < 4; i++)
@@ -913,40 +959,49 @@ static void secp256k1_scalar_reduce_512_barrett(secp256k1_scalar *r, const uint6
     // secp256k1_scalar_print_slims("e2", e2, 8);
 
     // t1 = e = (e1+e2) >> 256
+    // int overfollow = secp256k1_scalar_add_512(e, e1, e2);
     int overfollow = secp256k1_scalar_add_512(e, e1, e2);
     // secp256k1_scalar_print_slims("e1+e2", e, 8);
-
-    assert(overfollow == 0);
     for (size_t i = 0; i < 4; i++)
     {
         t1.d[i] = e[i+4];
     }
-
     // secp256k1_scalar_print("e", &t1);
 
-    // c = d - e*N
+    // c = d - e*N - overfollow*(N << 256)
     secp256k1_scalar_mul_512(e_mul_N, &t1, &N);
     // secp256k1_scalar_print_slims("eN", e_mul_N, 8);
-    
     secp256k1_scalar_sub_512(c, d, e_mul_N);
+    if (overfollow)
+    {
+        secp256k1_scalar_sub_512(c, c, N_rot256);
+    }
+    
     // secp256k1_scalar_print_slims("c", c, 8);
 
     // 返回的c是256比特的数
-    assert(c[4] == 0);
-    assert(c[5] == 0);
-    assert(c[6] == 0);
-    assert(c[7] == 0);
+    // assert(c[4] == 0);
+    // assert(c[5] == 0);
+    // assert(c[6] == 0);
+    // assert(c[7] == 0);
 
+    int count = 0;
+    while (secp256k1_scalar_cmp_512(c, N_arr) > 0 && count < 4)
+    {
+        secp256k1_scalar_sub_512(c, c, N_arr);
+        count++;
+        // printf("while count: %d\n", count);
+    }
     // r
     for (size_t i = 0; i < 4; i++)
     {
         r->d[i] = c[i];
     }
 
-    // 最多循环3次
-    while(secp256k1_scalar_check_overflow(r)){
-        secp256k1_scalar_reduce(r, secp256k1_scalar_check_overflow(r));
-    }
+    // // 最多循环3次
+    // while(secp256k1_scalar_check_overflow(r)){
+    //     secp256k1_scalar_reduce(r, secp256k1_scalar_check_overflow(r));
+    // }
 }
 
 #undef sumadd
@@ -958,7 +1013,6 @@ static void secp256k1_scalar_reduce_512_barrett(secp256k1_scalar *r, const uint6
 
 static void secp256k1_scalar_mul(secp256k1_scalar *r, const secp256k1_scalar *a, const secp256k1_scalar *b) {
     uint64_t l[8];
-
 #if 0
     secp256k1_scalar t1, t2;
     
@@ -975,22 +1029,21 @@ static void secp256k1_scalar_mul(secp256k1_scalar *r, const secp256k1_scalar *a,
     secp256k1_scalar_mul_512(l, &t1, &t2);
 
     // 验证乘法结果：passed
-    secp256k1_scalar_print("t1", &t1);
-    secp256k1_scalar_print("t2", &t2);
+    secp256k1_scalar_print("[*] t1", &t1);
+    secp256k1_scalar_print("[*] t2", &t2);
     // 0x3073d6157dd31dfa4539816d0ea5ee6ee2b72dd3062960b18f45b392fd7cfdf48ec7fed8ae4b8c21c70d9794f9e745d8be5fa96dcf25eab71d25a9e1c8e84828
-    secp256k1_scalar_print_slims("l", l, 8);
+    secp256k1_scalar_print_slims("[-] l", l, 8);
 
     // 验证取模结果
     secp256k1_scalar_reduce_512_barrett(r, l);
 
     // 验证取模结果：
-    secp256k1_scalar_print("r", r);
-
+    secp256k1_scalar_print("[-] r", r);
 #endif 
 
     secp256k1_scalar_mul_512(l, a, b);
 
-#if 1
+#if 0
     // 验证乘法结果：passed
     secp256k1_scalar_print("a", a);
     secp256k1_scalar_print("b", b);

@@ -174,9 +174,7 @@ void scalar_test(void) {
         /* Test commutativity of mul. */
         secp256k1_scalar r1, r2;
         secp256k1_scalar_mul(&r1, &s1, &s2);
-        PRINT_FLAG("End commutativity of mul 1");
         secp256k1_scalar_mul(&r2, &s2, &s1);
-        PRINT_FLAG("End commutativity of mul 2");
         CHECK(secp256k1_scalar_eq(&r1, &r2));
     }
 
