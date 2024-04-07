@@ -30,9 +30,62 @@ SECP256K1_INLINE static int secp256k1_fe_equal(const secp256k1_fe *a, const secp
 
 SECP256K1_INLINE static int secp256k1_fe_equal_var(const secp256k1_fe *a, const secp256k1_fe *b) {
     secp256k1_fe na;
+
+#if 0
+    secp256k1_fe a_t, b_t;
+    a_t.n[4] = 0x642571a8b2dcULL;
+    a_t.n[3] = 0x2900000001340ULL;
+    a_t.n[2] = 0x3614d61875b90ULL;
+    a_t.n[1] = 0x540ff8b541646ULL;
+    a_t.n[0] = 0xc458af3a0b2fcULL;
+
+    b_t.n[4] = 0x642571a8b2dcULL;
+    b_t.n[3] = 0x2900000001340ULL;
+    b_t.n[2] = 0x3614d61875b90ULL;
+    b_t.n[1] = 0x540ff8b541646ULL;
+    b_t.n[0] = 0xc458af3a0b2fcULL;
+
+    secp256k1_fe_negate(&na, &a_t, 1);
+    secp256k1_fe_print("a", &a_t);
+    secp256k1_fe_print("b", &b_t);
+
+    secp256k1_fe_print("na", &na);
+    
+    secp256k1_fe_add(&na, &b_t);
+    
+    secp256k1_fe_print("na+b", &na);
+
+    return 0;
+#endif
+
+    // a: 
+    // 4, 642571a8b2dc
+    // 3, 2900000001340
+    // 2, 3614d61875b90
+    // 1, 540ff8b541646
+    // 0, c458af3a0b2fc
+
+    // b: 
+    // 4, 642571a8b2dc
+    // 3, 2900000001340
+    // 2, 3614d61875b90
+    // 1, 540ff8b541646
+    // 0, c458af3a0b2fc
+
+
     secp256k1_fe_negate(&na, a, 1);
+    // secp256k1_fe_print("a", a);
+    // secp256k1_fe_print("b", b);
+
+    // secp256k1_fe_print("na", &na);
+    
     secp256k1_fe_add(&na, b);
-    return secp256k1_fe_normalizes_to_zero_var(&na);
+    
+    // secp256k1_fe_print("na+b", &na);
+
+    int res = secp256k1_fe_normalizes_to_zero_var(&na);
+    printf("res = %d\n", res);
+    return res;
 }
 
 static int secp256k1_fe_sqrt(secp256k1_fe *r, const secp256k1_fe *a) {

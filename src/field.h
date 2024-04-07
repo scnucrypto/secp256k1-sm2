@@ -32,6 +32,8 @@
 #error "Please select wide multiplication implementation"
 #endif
 
+static void secp256k1_fe_print(char *pre, secp256k1_fe *r);
+
 /** Normalize a field element. This brings the field element to a canonical representation, reduces
  *  its magnitude to 1, and reduces it modulo field size `p`.
  */
