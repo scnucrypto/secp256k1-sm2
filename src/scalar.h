@@ -22,8 +22,15 @@
 #else
 #error "Please select wide multiplication implementation"
 #endif
+
+
+static int secp256k1_scalar_add_512(uint64_t r[8], uint64_t a[8], uint64_t b[8]);
 static void secp256k1_scalar_print_slims(char *pre, uint64_t *r, size_t count);
 static void secp256k1_scalar_print(char *pre, secp256k1_scalar *r);
+static void secp256k1_fe_reduce_512_barrett(uint64_t *r, const uint64_t *d);
+static int secp256k1_scalar_cmp_512(uint64_t a[], uint64_t b[]);
+static void secp256k1_scalar_sub_512(uint64_t r[8], uint64_t a[8], uint64_t b[8]);
+static void secp256k1_scalar_mul_512(uint64_t l[8], const secp256k1_scalar *a, const secp256k1_scalar *b);
 
 /** Clear a scalar to prevent the leak of sensitive data. */
 static void secp256k1_scalar_clear(secp256k1_scalar *r);

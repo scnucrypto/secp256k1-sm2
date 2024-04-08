@@ -11,10 +11,10 @@
 #include "libsecp256k1-config.h"
 #endif
 
+#include "scalar.h"
 #include "util.h"
 #include "field.h"
 #include "modinv64_impl.h"
-
 #if defined(USE_ASM_X86_64)
 #include "field_5x52_asm_impl.h"
 #else
@@ -34,6 +34,12 @@
 #define SECP256K1_P_NOT_2 ((uint64_t)0x0ULL)
 #define SECP256K1_P_NOT_3 ((uint64_t)0x0ULL)
 #define SECP256K1_P_NOT_4 ((uint64_t)0xF000000010000ULL)
+
+/* Limbs of the sm2_p256 order. */
+#define SECP256K1_P_0 ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
+#define SECP256K1_P_1 ((uint64_t)0xFFFFFFFF00000000ULL)
+#define SECP256K1_P_2 ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
+#define SECP256K1_P_3 ((uint64_t)0xFFFFFFFEFFFFFFFFULL)
 
 /** Implements arithmetic modulo FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F,
  *  represented as 5 uint64_t's in base 2^52, least significant first. Note that the limbs are allowed to
@@ -188,7 +194,7 @@ static void secp256k1_fe_normalize_weak(secp256k1_fe *r) {
     uint64_t t0 = r->n[0], t1 = r->n[1], t2 = r->n[2], t3 = r->n[3], t4 = r->n[4];
 
     /* Reduce t4 at the start so there will be at most a single carry from the first pass */
-    uint64_t x = t4 >> 48; t4 &= 0x0FFFFFFFEFFFFULL;
+    uint64_t x = t4 >> 48; t4 &= 0x0FFFFFFFFFFFFULL;
 
     /* The first pass ensures the magnitude is 1, ... */
     // t0 += x * 0x1000003D1ULL;
@@ -219,7 +225,7 @@ static void secp256k1_fe_normalize_var(secp256k1_fe *r) {
 
     /* Reduce t4 at the start so there will be at most a single carry from the first pass */
     uint64_t m;
-    uint64_t x = t4 >> 48; t4 &= 0x0FFFFFFFEFFFFULL;
+    uint64_t x = t4 >> 48; t4 &= 0x0FFFFFFFFFFFFULL;
 
     /* The first pass ensures the magnitude is 1, ... */
     // t0 += x * 0x1000003D1ULL;
@@ -258,7 +264,7 @@ static void secp256k1_fe_normalize_var(secp256k1_fe *r) {
         VERIFY_CHECK(t4 >> 48 == x);
 
         /* Mask off the possible multiple of 2^256 from the final reduction */
-        t4 &= 0x0FFFFFFFEFFFFULL;
+        t4 &= 0x0FFFFFFFFFFFFULL;
     }
 
     r->n[0] = t0; r->n[1] = t1; r->n[2] = t2; r->n[3] = t3; r->n[4] = t4;
@@ -544,6 +550,32 @@ SECP256K1_INLINE static void secp256k1_fe_add(secp256k1_fe *r, const secp256k1_f
 #endif
 
 }
+
+static void secp256k1_fe_mul_t(secp256k1_fe *r, const secp256k1_fe *a, const secp256k1_fe * SECP256K1_RESTRICT b) {
+   uint64_t l[8];
+
+   secp256k1_fe an, bn;
+   an = *a;
+   bn = *b;
+    
+
+   secp256k1_fe_storage as, bs, rs;
+    secp256k1_fe_normalize(&an);    
+    secp256k1_fe_normalize(&bn);
+//    secp256k1_fe_normalize(&a);
+//    secp256k1_fe_normalize(&b);
+
+   secp256k1_fe_to_storage(&as, &an);
+   secp256k1_fe_to_storage(&bs, &bn);
+
+   secp256k1_scalar_mul_512(l, &as.n, &bs.n);
+
+   secp256k1_fe_reduce_512_barrett(&rs.n, l);
+
+   secp256k1_fe_from_storage(r, &rs);
+}
+
+
 static void secp256k1_fe_mul(secp256k1_fe *r, const secp256k1_fe *a, const secp256k1_fe * SECP256K1_RESTRICT b) {
 #ifdef VERIFY
     VERIFY_CHECK(a->magnitude <= 8);

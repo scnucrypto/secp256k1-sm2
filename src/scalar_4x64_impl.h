@@ -846,7 +846,88 @@ static int secp256k1_scalar_cmp_512(uint64_t a[], uint64_t b[]){
     }
     return 0;
 }
+static void secp256k1_fe_reduce_512_barrett(uint64_t *r, const uint64_t *d) {
+    uint64_t e[8], e1[8], e2[8], e_mul_N[8], c[8], N_rot256[8], N_arr[8];
+    secp256k1_scalar t1, t2, e_scalar;
+    secp256k1_scalar N, u1;
+    u1.d[0] = ((uint64_t)0x200000003ULL);
+    u1.d[1] = ((uint64_t)0x200000002ULL);
+    u1.d[2] = ((uint64_t)0x100000001ULL);
+    u1.d[3] = ((uint64_t)0x100000001ULL);
 
+    N.d[0] = SECP256K1_P_0;
+    N.d[1] = SECP256K1_P_1;
+    N.d[2] = SECP256K1_P_2;
+    N.d[3] = SECP256K1_P_3;
+
+    // N_rot256 = N << 256
+    N_rot256[0] = 0;
+    N_rot256[1] = 0;
+    N_rot256[2] = 0;
+    N_rot256[3] = 0;
+    N_rot256[4] = SECP256K1_P_0;
+    N_rot256[5] = SECP256K1_P_1;
+    N_rot256[6] = SECP256K1_P_2;
+    N_rot256[7] = SECP256K1_P_3;
+
+    N_arr[0] = SECP256K1_P_0;
+    N_arr[1] = SECP256K1_P_1;
+    N_arr[2] = SECP256K1_P_2;
+    N_arr[3] = SECP256K1_P_3;
+    N_arr[4] = 0;
+    N_arr[5] = 0;
+    N_arr[6] = 0;
+    N_arr[7] = 0;
+
+    // t1 = d >> n
+    for (size_t i = 0; i < 4; i++)
+    {
+        t1.d[i] = (uint64_t)d[i+4];
+    } 
+
+    // e1 = u1 * (d>>n)
+    secp256k1_scalar_mul_512(e1, &u1, &t1);
+    // secp256k1_scalar_print_slims("e1", e1, 8);
+
+    // e2 = (d>>n) << 256
+    for (size_t i = 0; i < 4; i++)
+    {
+        e2[i] = (uint64_t)0;
+        e2[i+4] = (uint64_t)d[i+4];
+    }
+    // secp256k1_scalar_print_slims("e2", e2, 8);
+
+    // t1 = e = (e1+e2) >> 256
+    // int overfollow = secp256k1_scalar_add_512(e, e1, e2);
+    int overfollow = secp256k1_scalar_add_512(e, e1, e2);
+    // secp256k1_scalar_print_slims("e1+e2", e, 8);
+    for (size_t i = 0; i < 4; i++)
+    {
+        t1.d[i] = e[i+4];
+    }
+    // secp256k1_scalar_print("e", &t1);
+
+    // c = d - e*N - overfollow*(N << 256)
+    secp256k1_scalar_mul_512(e_mul_N, &t1, &N);
+    // secp256k1_scalar_print_slims("eN", e_mul_N, 8);
+    secp256k1_scalar_sub_512(c, d, e_mul_N);
+    if (overfollow)
+    {
+        secp256k1_scalar_sub_512(c, c, N_rot256);
+    }
+    // secp256k1_scalar_print_slims("c", c, 8);
+
+    while (secp256k1_scalar_cmp_512(c, N_arr) > 0)
+    {
+        secp256k1_scalar_sub_512(c, c, N_arr);
+        // printf("while count: %d\n", count);
+    }
+    // r
+    for (size_t i = 0; i < 4; i++)
+    {
+        r[i] = c[i];
+    }
+}
 static void secp256k1_scalar_reduce_512_barrett(secp256k1_scalar *r, const uint64_t *d) {
     uint64_t e[8], e1[8], e2[8], e_mul_N[8], c[8], N_rot256[8], N_arr[8];
     secp256k1_scalar t1, t2, e_scalar;

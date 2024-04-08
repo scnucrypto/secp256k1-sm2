@@ -175,10 +175,17 @@ void random_fe_non_square(secp256k1_fe *ns) {
 }
 
 int check_fe_equal(const secp256k1_fe *a, const secp256k1_fe *b) {
+    // printf("[+] begin check_fe_equal\n");
     secp256k1_fe an = *a;
     secp256k1_fe bn = *b;
+    // secp256k1_fe_print("a", a);
+    // secp256k1_fe_print("b", b);
+
     secp256k1_fe_normalize_weak(&an);
     secp256k1_fe_normalize_var(&bn);
+    // secp256k1_fe_print("an", &an);
+    // secp256k1_fe_print("bn", &bn);
+    // printf("[-] end check_fe_equal\n");
     return secp256k1_fe_equal_var(&an, &bn);
 }
 
@@ -233,13 +240,13 @@ void run_field_misc(void) {
     int i, j;
     // for (i = 0; i < 5*count; i++) {
     for (i = 0; i < 1; i++) {
-
         secp256k1_fe_storage xs, ys, zs;
         random_fe(&x);
         random_fe_non_zero(&y);
         /* Test the fe equality and comparison operations. */
         CHECK(secp256k1_fe_cmp_var(&x, &x) == 0);
         CHECK(secp256k1_fe_equal_var(&x, &x));
+        // printf("111\n");
         z = x;
         secp256k1_fe_add(&z,&y);
         /* Test fe conditional move; z is not normalized here. */
@@ -261,6 +268,7 @@ void run_field_misc(void) {
         CHECK(!secp256k1_fe_equal_var(&x, &z));
         secp256k1_fe_normalize_var(&q);
         secp256k1_fe_cmov(&q, &z, (i&1));
+        // printf("222\n");
 #ifdef VERIFY
         CHECK(q.normalized && q.magnitude == 1);
 #endif
@@ -282,25 +290,34 @@ void run_field_misc(void) {
         CHECK(secp256k1_memcmp_var(&xs, &zs, sizeof(xs)) != 0);
         secp256k1_fe_storage_cmov(&ys, &xs, 1);
         CHECK(secp256k1_memcmp_var(&xs, &ys, sizeof(xs)) == 0);
+        // zs != xs，ys == xs
         secp256k1_fe_from_storage(&x, &xs);
         secp256k1_fe_from_storage(&y, &ys);
         secp256k1_fe_from_storage(&z, &zs);
         /* Test that mul_int, mul, and add agree. */
-        secp256k1_fe_print("x", &x);
-        secp256k1_fe_print("y", &y);
+        // secp256k1_fe_print("x", &x);
+        // secp256k1_fe_print("y", &y);
+        // secp256k1_fe_print("z", &y);
         secp256k1_fe_add(&y, &x);
-        secp256k1_fe_print("x+y", &y);
-
+        // secp256k1_fe_print("2x", &y);
         secp256k1_fe_add(&y, &x);
+        // secp256k1_fe_print("3x", &y);
         z = x;
         secp256k1_fe_mul_int(&z, 3);
+        // secp256k1_fe_print("3z", &z);
         CHECK(check_fe_equal(&y, &z));
         secp256k1_fe_add(&y, &x);
         secp256k1_fe_add(&z, &x);
         CHECK(check_fe_equal(&z, &y));
         z = x;
+        // secp256k1_fe_print("z", &z);
         secp256k1_fe_mul_int(&z, 5);
-        secp256k1_fe_mul(&q, &x, &fe5);
+        // secp256k1_fe_print("z*fe5", &z);
+        secp256k1_fe_mul_t(&q, &x, &fe5);
+        // secp256k1_fe_print("x", &x);
+        // secp256k1_fe_print("fe5", &fe5);
+        // secp256k1_fe_print("x*fe5", &q);
+
         CHECK(check_fe_equal(&z, &q));
         secp256k1_fe_negate(&x, &x, 1);
         secp256k1_fe_add(&z, &x);

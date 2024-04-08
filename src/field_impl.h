@@ -76,7 +76,6 @@ SECP256K1_INLINE static int secp256k1_fe_equal_var(const secp256k1_fe *a, const 
     secp256k1_fe_negate(&na, a, 1);
     // secp256k1_fe_print("a", a);
     // secp256k1_fe_print("b", b);
-
     // secp256k1_fe_print("na", &na);
     
     secp256k1_fe_add(&na, b);
